@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, shrink-to-fit=no"
+    />
+    <title>Ultraviolet | Sophisticated Web Proxy</title>
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: dark)"
+      content="#434c5e"
+    />
+    <script src="https://unpkg.com/highlight.run"></script>
+    <script>
+      let host = location.host;
+      let ver = host.includes("csb")
+        ? "dev-csb"
+        : host.includes("vercel")
+        ? "prod-vercel"
+        : "prod-render";
+      H.init("132006", {
+        // Get your project ID from https://app.highlight.io/setup
+        environment: ver,
+        version: ver,
+        networkRecording: {
+          //privacySetting: "none", // very sorry, but i wanna test
+          enabled: true,
+          //recordHeadersAndBody: true,
+          urlBlocklist: [
+            // insert full or partial urls that you don't want to record here
+            // Out of the box, Highlight will not record these URLs (they can be safely removed):
+            "https://www.googleapis.com/identitytoolkit",
+            "https://securetoken.googleapis.com",
+          ],
+        },
+      });
+    </script>
+    <link rel="shortcut icon" content="favicon.ico" />
+    <link rel="stylesheet" href="index.css" />
+    <script src="/proxy/baremux/index.js" defer></script>
+    <script src="/proxy/epoxy/index.js" defer></script>
+    <script src="/proxy/uv/uv.bundle.js" defer></script>
+    <script src="/proxy/uv/uv.config.js" defer></script>
+    <script src="/proxy/register-sw.js" defer></script>
+    <script src="/proxy/search.js" defer></script>
+    <script src="/proxy/index.js" defer></script>
+    <!-- Google tag (gtag.js) (i'm sorry) -->
+    <script
+      async
+      src="https://www.googletagmanager.com/gtag/js?id=G-XEY66QJESF"
+    ></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag("js", new Date());
+
+      gtag("config", "G-XEY66QJESF");
+    </script>
+  </head>
+  <body>
+    <div class="flex-center logo-wrapper header-center">
+      <img class="logo" src="uv.png" alt="Ultraviolet" />
+      <div class="flex-center desc left-margin" style="font-size: 80%">
+        <p>
+          It took me like 5 minutes to make this logo<br />
+          Please like it. (I copied off of the normal icon)
+        </p>
+      </div>
+      <h1>BestSpark687090's Ultraviolet Proxy</h1>
+    </div>
+    <div class="flex-center desc left-margin">
+      <p>
+        Ultraviolet is highly sophisticated proxy<br />
+        used for evading internet censorship. <br />
+        Which was kinda... modified by me :P
+      </p>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <script>
+      eruda.init();
+    </script>
+    <!-- TODO: add username box, cause it's good for tracking  -->
+    <form id="uv-form" class="flex-center">
+      <input
+        id="uv-search-engine"
+        value="https://www.duckduckgo.com/search?q=%s"
+        type="hidden"
+      />
+      <input
+        id="username"
+        type="text"
+        placeholder="Enter Username... (required!)"
+        aria-label="Used for tracking purposes. Sorry! Want to be safe."
+      />
+      <input id="uv-address" type="text" placeholder="Search the web freely" />
+      <button id="uv-address" type="submit">Open Here</button>
+    </form>
+    <br />
+    <div class="flex-center desc left-margin">
+      <button id="uv-address" onclick="newTab()">Open in New Tab</button>
+    </div>
+    <div class="flex-center desc">
+      <p>
+        <s>
+          Tip: Press <kbd>Ctrl+Shift+Z</kbd> to come back to this page. <br />
+          (Added by BestSpark687090) </s
+        ><br />
+        Please note this only works if you can click on the normal page, not the
+        frame holding the tab.
+      </p>
+    </div>
+    <div class="desc left-margin">
+      <p id="uv-error"></p>
+      <pre id="uv-error-code"></pre>
+    </div>
+    <footer>
+      <div>
+        <a title="License information" href="/proxy/credits.html">Credits</a>
+      </div>
+      <div>
+        <span>Ultraviolet &copy; TN 2023 (Modified by BestSpark687090)</span>
+      </div>
+    </footer>
+    <iframe style="display: none" id="uv-frame"></iframe>
+  </body>
+</html>
