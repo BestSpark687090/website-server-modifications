@@ -20,7 +20,7 @@ fastify.register(fastifyStatic, {
 	decorateReply: false,
 });
 fastify.register(fastifyStatic, {
-	root: "/site/BestSpark687090", // This probably isn't a good idea but too bad
+	root: "/srv/http/BestSpark687090", // This probably isn't a good idea but too bad
 	decorateReply: true,
 });
 // Serve UV config file
