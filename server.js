@@ -12,11 +12,11 @@ import { baremuxPath } from "@mercuryworkshop/bare-mux/node";
 let epoxyImportPath = resolve(baremuxPath + "/../../epoxy-transport/dist");
 let ePath = "";
 let pPrefix = "/proxy"
-const fastify = Fastify();
+const fastify = Fastify({forceCloseConnections: true,});
 // Register static files
 fastify.register(fastifyStatic, {
 	root: publicPath,
-  prefix: pPrefix,
+	prefix: pPrefix,
 	decorateReply: false,
 });
 fastify.register(fastifyStatic, {
