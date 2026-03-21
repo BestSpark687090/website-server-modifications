@@ -2,7 +2,7 @@
 /**
  * Distributed with Ultraviolet and compatible with most configurations.
  */
-const stockSW = "/proxy/uv/sw.js";
+const stockSW = "./sw.js";
 
 /**
  * List of hostnames that are allowed to run serviceworkers on http://
