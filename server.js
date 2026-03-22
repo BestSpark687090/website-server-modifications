@@ -9,11 +9,17 @@ import { publicPath } from "ultraviolet-static";
 import { uvPath } from "@titaniumnetwork-dev/ultraviolet";
 // import { epoxyPath } from "./node_modules/@mercuryworkshop/epoxy-transport/lib/index.cjs";
 import { baremuxPath } from "@mercuryworkshop/bare-mux/node";
+import { fileURLToPath } from "url";
 let epoxyImportPath = resolve(baremuxPath + "/../../epoxy-transport/dist");
 let ePath = "";
 let pPrefix = "/proxy"
+import { scramjetPath } from "@mercuryworkshop/scramjet/path";
+import { libcurlPath } from "@mercuryworkshop/libcurl-transport";
+import { baremuxPath } from "@mercuryworkshop/bare-mux/node";
+let sjPrefix = "/sjp"
 const fastify = Fastify({forceCloseConnections: true,});
 // Register static files
+const publicsjPath = fileURLToPath("/app/scramjet-proxy/public");
 fastify.register(fastifyStatic, {
 	root: publicPath,
 	prefix: pPrefix,
@@ -43,6 +49,25 @@ fastify.register(fastifyStatic, {
 fastify.register(fastifyStatic, {
 	root: baremuxPath,
 	prefix: pPrefix+"/baremux/",
+	decorateReply: false,
+});
+
+// Scramjet stuff
+fastify.register(fastifyStatic, {
+	root: publicsjPath,
+	prefix: sjPrefix,
+	decorateReply: true,
+});
+
+fastify.register(fastifyStatic, {
+	root: scramjetPath,
+	prefix: sjPrefix+"/scram/",
+	decorateReply: false,
+});
+
+fastify.register(fastifyStatic, {
+	root: libcurlPath,
+	prefix: "/libcurl/",
 	decorateReply: false,
 });
 
