@@ -65,7 +65,7 @@ fastify.register(fastifyStatic, {
 
 fastify.register(fastifyStatic, {
 	root: libcurlPath,
-	prefix: "/libcurl/",
+	prefix: sjPrefix+"/libcurl/",
 	decorateReply: false,
 });
 
