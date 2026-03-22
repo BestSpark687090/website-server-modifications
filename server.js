@@ -69,6 +69,12 @@ fastify.register(fastifyStatic, {
 	decorateReply: false,
 });
 
+fastify.register(fastifyStatic, {
+	root: baremuxPath,
+	prefix: sjPrefix+"/baremux/",
+	decorateReply: false,
+});
+
 // Handling WebSocket upgrades
 fastify.server.on("upgrade", (req, socket, head) => {
 	// console.log(`Upgrade Request: ${socket.addListener}`);
