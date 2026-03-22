@@ -15,7 +15,6 @@ let ePath = "";
 let pPrefix = "/proxy"
 import { scramjetPath } from "@mercuryworkshop/scramjet/path";
 import { libcurlPath } from "@mercuryworkshop/libcurl-transport";
-import { baremuxPath } from "@mercuryworkshop/bare-mux/node";
 let sjPrefix = "/sjp"
 const fastify = Fastify({forceCloseConnections: true,});
 // Register static files
