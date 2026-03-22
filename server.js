@@ -18,7 +18,6 @@ import { libcurlPath } from "@mercuryworkshop/libcurl-transport";
 let sjPrefix = "/sjp"
 const fastify = Fastify({forceCloseConnections: true,});
 // Register static files
-const publicsjPath = fileURLToPath("/app/scramjet-proxy/public");
 fastify.register(fastifyStatic, {
 	root: publicPath,
 	prefix: pPrefix,
@@ -53,7 +52,7 @@ fastify.register(fastifyStatic, {
 
 // Scramjet stuff
 fastify.register(fastifyStatic, {
-	root: publicsjPath,
+	root: "/app/scramjet-proxy/public",
 	prefix: sjPrefix,
 	decorateReply: true,
 });
