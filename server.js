@@ -54,7 +54,7 @@ fastify.register(fastifyStatic, {
 fastify.register(fastifyStatic, {
 	root: "/app/scramjet-proxy/public",
 	prefix: sjPrefix,
-	decorateReply: true,
+	decorateReply: false,
 });
 
 fastify.register(fastifyStatic, {
