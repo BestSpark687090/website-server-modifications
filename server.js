@@ -16,7 +16,7 @@ let pPrefix = "/proxy"
 import { scramjetPath } from "@mercuryworkshop/scramjet/path";
 import { libcurlPath } from "@mercuryworkshop/libcurl-transport";
 let sjPrefix = "/sjp"
-const fastify = Fastify({forceCloseConnections: true,});
+const fastify = Fastify({forceCloseConnections: true, trustProxy: true });
 // Register static files
 fastify.register(fastifyStatic, {
 	root: publicPath,
@@ -76,6 +76,13 @@ fastify.register(fastifyStatic, {
 	prefix: sjPrefix+"/baremux/",
 	decorateReply: false,
 });
+
+// expects {"username": "[username]","url": "[url]" } // It can get IP by itself I think
+fastify.post("/reportURL", (req,res)=>{
+	let body = req.body
+	console.log(`[${new Date().toLocaleString()}]: ${body.username} visited ${body.url}, IP is ${req.ip} I believe`)
+	return res.code(204).send({"message": "Done."})
+})
 
 // Handling WebSocket upgrades
 fastify.server.on("upgrade", (req, socket, head) => {
