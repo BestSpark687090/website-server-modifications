@@ -2,6 +2,7 @@ import { server } from "@mercuryworkshop/wisp-js/server";
 import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
 import { resolve } from "node:path";
+server.setLogLevel(2) // WARN log level, only logs messages like "warn: (9278db6c) received a DATA packet for a stream which doesn't exist"
 const rReq = server.routeRequest;
 
 // Static paths
@@ -80,7 +81,7 @@ fastify.register(fastifyStatic, {
 // expects {"username": "[username]","url": "[url]" } // It can get IP by itself I think
 fastify.post("/reportURL", (req,res)=>{
 	let body = req.body
-	console.log(`[${new Date().toLocaleString()}]: ${body.username} visited ${body.url}, IP is ${req.ip} I believe`)
+	console.log(`[${new Date().toLocaleString()}]: ${body.username} visited ${body.url}, IP is ${req.ip}`)
 	return res.code(204).send({"message": "Done."})
 })
 
