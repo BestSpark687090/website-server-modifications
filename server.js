@@ -2,7 +2,7 @@ import { server } from "@mercuryworkshop/wisp-js/server";
 import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
 import { resolve } from "node:path";
-server.setLogLevel(2) // WARN log level, only logs messages like "warn: (9278db6c) received a DATA packet for a stream which doesn't exist"
+//server.setLogLevel(2) //  WARN log level, only logs messages like "warn: (9278db6c) received a DATA packet for a stream which doesn't exist"
 const rReq = server.routeRequest;
 
 // Static paths
