@@ -13,7 +13,7 @@ import { baremuxPath } from "@mercuryworkshop/bare-mux/node";
 import { fileURLToPath } from "url";
 let epoxyImportPath = resolve(baremuxPath + "/../../epoxy-transport/dist");
 let ePath = "";
-let pPrefix = "/proxy"
+let pPrefix = "/pxy"
 import { scramjetPath } from "@mercuryworkshop/scramjet/path";
 import { libcurlPath } from "@mercuryworkshop/libcurl-transport";
 let sjPrefix = "/sjp"
