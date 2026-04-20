@@ -29,16 +29,16 @@ fastify.register(fastifyStatic, {
 	decorateReply: true,
 });
 // Serve UV config file
-fastify.get(pPrefix+"/uv/uv.config.js", (req, res) => {
+fastify.get(pPrefix+"/ultrav/uv.config.js", (req, res) => {
 	return res.sendFile("uv/uv.config.js", publicPath);
 });
-fastify.get(pPrefix+"/uv/sw.js", (req, res) => {
+fastify.get(pPrefix+"/ultrav/sw.js", (req, res) => {
 	return res.sendFile("uv/sw.js", publicPath);
 });
 // Register additional static routes
 fastify.register(fastifyStatic, {
 	root: uvPath,
-	prefix: pPrefix+"/uv/",
+	prefix: pPrefix+"/ultrav/",
 	decorateReply: false,
 });
 fastify.register(fastifyStatic, {
@@ -90,7 +90,7 @@ fastify.server.on("upgrade", (req, socket, head) => {
 	// console.log(`Upgrade Request: ${socket.addListener}`);
 	if (req.url.endsWith("/wisp/")) {
 		rReq(req, socket, head);
-	} else if (req.url && req.url.startsWith(pPrefix+"/uv/service/")) {
+	} else if (req.url && req.url.startsWith(pPrefix+"/ultrav/service/")) {
 		console.log(`WebSocket Upgrade URL: ${req.url}`);
 	} else {
 		console.log("ended socket");
