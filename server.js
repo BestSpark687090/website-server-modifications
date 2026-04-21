@@ -29,8 +29,8 @@ fastify.register(fastifyStatic, {
 	decorateReply: true,
 });
 // Serve UV config file
-fastify.get(pPrefix+"/ultrav/uv.config.js", (req, res) => {
-	return res.sendFile("uv/uv.config.js", publicPath);
+fastify.get(pPrefix+"/ultrav/uv.conf.js", (req, res) => {
+	return res.sendFile("uv/uv.conf.js", publicPath);
 });
 fastify.get(pPrefix+"/ultrav/sw.js", (req, res) => {
 	return res.sendFile("uv/sw.js", publicPath);
