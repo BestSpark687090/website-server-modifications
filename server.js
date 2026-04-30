@@ -12,7 +12,7 @@ import { uvPath } from "@titaniumnetwork-dev/ultraviolet";
 import { baremuxPath } from "@mercuryworkshop/bare-mux/node";
 import { fileURLToPath } from "url";
 const _require = createRequire(import.meta.url);
-let epoxyImportPath = dirname(_require.resolve("@mercuryworkshop/epoxy-transport/package.json")) + "/dist";
+let epoxyImportPath = resolve(baremuxPath + "/../../epoxy-transport/dist");
 let ePath = "";
 let pPrefix = "/pxy"
 import { scramjetPath } from "@mercuryworkshop/scramjet/path";
