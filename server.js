@@ -16,8 +16,8 @@ let epoxyImportPath = resolve(baremuxPath + "/../../epoxy-transport/dist");
 let ePath = "";
 let pPrefix = "/pxy"
 import { scramjetPath } from "@mercuryworkshop/scramjet/path";
-const controllerPath = dirname(_require.resolve("@mercuryworkshop/scramjet-controller/package.json")) + "/dist";
-const libcurlPath = dirname(_require.resolve("@mercuryworkshop/libcurl-transport/package.json")) + "/dist";
+const controllerPath = dirname(_require.resolve("@mercuryworkshop/scramjet-controller/dist/controller.api.js"));
+const libcurlPath = dirname(_require.resolve("@mercuryworkshop/libcurl-transport"));
 let sjPrefix = "/sjp"
 const fastify = Fastify({forceCloseConnections: true, trustProxy: true });
 // Register static files
