@@ -1,21 +1,23 @@
 import { server } from "@mercuryworkshop/wisp-js/server";
 import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
-import { resolve } from "node:path";
+import { resolve, dirname } from "node:path";
+import { createRequire } from "node:module";
 //server.setLogLevel(2) //  WARN log level, only logs messages like "warn: (9278db6c) received a DATA packet for a stream which doesn't exist"
 const rReq = server.routeRequest;
 
 // Static paths
 import { publicPath } from "ultraviolet-static";
 import { uvPath } from "@titaniumnetwork-dev/ultraviolet";
-// import { epoxyPath } from "./node_modules/@mercuryworkshop/epoxy-transport/lib/index.cjs";
 import { baremuxPath } from "@mercuryworkshop/bare-mux/node";
 import { fileURLToPath } from "url";
+const _require = createRequire(import.meta.url);
 let epoxyImportPath = resolve(baremuxPath + "/../../epoxy-transport/dist");
 let ePath = "";
 let pPrefix = "/pxy"
 import { scramjetPath } from "@mercuryworkshop/scramjet/path";
-import { libcurlPath } from "@mercuryworkshop/libcurl-transport";
+const controllerPath = dirname(_require.resolve("@mercuryworkshop/scramjet-controller/dist/controller.api.js"));
+const libcurlPath = dirname(_require.resolve("@mercuryworkshop/libcurl-transport"));
 let sjPrefix = "/sjp"
 const fastify = Fastify({forceCloseConnections: true, trustProxy: true });
 // Register static files
@@ -62,7 +64,13 @@ fastify.register(fastifyStatic, {
 
 fastify.register(fastifyStatic, {
 	root: scramjetPath,
-	prefix: sjPrefix+"/scram/",
+	prefix: sjPrefix+"/scramjet/",
+	decorateReply: false,
+});
+
+fastify.register(fastifyStatic, {
+	root: controllerPath,
+	prefix: sjPrefix+"/controller/",
 	decorateReply: false,
 });
 
