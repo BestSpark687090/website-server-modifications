@@ -93,6 +93,7 @@ fastify.register(fastifyStatic, {
 	decorateReply: false,
 });
 
+<<<<<<< HEAD
 // Add Content-Encoding: gzip for pre-compressed Unity .unityweb files
 fastify.addHook("onSend", (req, reply, payload, done) => {
 	if (req.url.includes(".unityweb")) reply.header("Content-Encoding", "gzip");
@@ -120,12 +121,84 @@ fastify.get("/games/gn/covers/*", async (req, res) => {
 	const upstream = await fetch(coverURL + "/" + subPath);
 	if (!upstream.ok) {
 		return res.code(upstream.status).type("text/html").send(upstreamError(upstream.status, upstream.statusText));
+=======
+// Cache for /games/gn/ proxy responses (in-memory, keyed by path)
+const gnCache = new Map();
+const GN_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const GN_BASE_URL = "https://cdn.jsdelivr.net/gh/sealiee11/gnmathstuff@main/";
+const coverURL = "https://cdn.jsdelivr.net/gh/freebuisness/covers@main";
+const htmlURL = "https://cdn.jsdelivr.net/gh/freebuisness/html@main";
+
+const coversCache = new Map();
+const htmlCache = new Map();
+
+fastify.get("/games/gn/covers/*", async (req, res) => {
+	const subPath = req.params["*"] || "";
+	const upstreamUrl = coverURL + "/" + subPath;
+	const now = Date.now();
+	const cached = coversCache.get(subPath);
+	if (cached && now - cached.timestamp < GN_CACHE_TTL_MS) {
+		res.header("Content-Type", cached.contentType);
+		res.header("X-Cache", "HIT");
+		return res.send(cached.body);
+	}
+	const upstream = await fetch(upstreamUrl);
+	if (!upstream.ok) {
+		return res.code(upstream.status).send(`Upstream error: ${upstream.statusText}`);
+>>>>>>> 06af642249360772a1b74833d5f4a66fd7035984
 	}
 	const contentType = upstream.headers.get("content-type") || "application/octet-stream";
 	const body = Buffer.from(await upstream.arrayBuffer());
 	coversCache.set(subPath, { body, contentType, timestamp: now });
 	res.header("Content-Type", contentType);
+<<<<<<< HEAD
 	res.header("Cache-Control", "public, max-age=600");
+=======
+	res.header("X-Cache", "MISS");
+	return res.send(body);
+});
+
+fastify.get("/games/gn/html/*", async (req, res) => {
+	const subPath = req.params["*"] || "";
+	const upstreamUrl = htmlURL + "/" + subPath;
+	const now = Date.now();
+	const cached = htmlCache.get(subPath);
+	if (cached && now - cached.timestamp < GN_CACHE_TTL_MS) {
+		res.header("Content-Type", cached.contentType);
+		res.header("X-Cache", "HIT");
+		return res.send(cached.body);
+	}
+	const upstream = await fetch(upstreamUrl);
+	if (!upstream.ok) {
+		return res.code(upstream.status).send(`Upstream error: ${upstream.statusText}`);
+	}
+	const contentType = upstream.headers.get("content-type") || "application/octet-stream";
+	const body = Buffer.from(await upstream.arrayBuffer());
+	htmlCache.set(subPath, { body, contentType, timestamp: now });
+	res.header("Content-Type", contentType);
+	res.header("X-Cache", "MISS");
+	return res.send(body);
+});
+
+fastify.get("/games/gn/*", async (req, res) => {
+	const subPath = req.params["*"] || "";
+	const upstreamUrl = GN_BASE_URL + subPath;
+	const now = Date.now();
+	const cached = gnCache.get(subPath);
+	if (cached && now - cached.timestamp < GN_CACHE_TTL_MS) {
+		res.header("Content-Type", cached.contentType);
+		res.header("X-Cache", "HIT");
+		return res.send(cached.body);
+	}
+	const upstream = await fetch(upstreamUrl);
+	if (!upstream.ok) {
+		return res.code(upstream.status).send(`Upstream error: ${upstream.statusText}`);
+	}
+	const contentType = upstream.headers.get("content-type") || "application/octet-stream";
+	const body = Buffer.from(await upstream.arrayBuffer());
+	gnCache.set(subPath, { body, contentType, timestamp: now });
+	res.header("Content-Type", contentType);
+>>>>>>> 06af642249360772a1b74833d5f4a66fd7035984
 	res.header("X-Cache", "MISS");
 	return res.send(body);
 });
@@ -142,19 +215,29 @@ fastify.get("/games/sd/*", async (req, res) => {
 	const cached = sdCache.get(subPath);
 	if (cached && now - cached.timestamp < SD_CACHE_TTL_MS) {
 		res.header("Content-Type", cached.contentType);
+<<<<<<< HEAD
 		res.header("Cache-Control", "public, max-age=300");
+=======
+>>>>>>> 06af642249360772a1b74833d5f4a66fd7035984
 		res.header("X-Cache", "HIT");
 		return res.send(cached.body);
 	}
 	const upstream = await fetch(upstreamUrl);
 	if (!upstream.ok) {
+<<<<<<< HEAD
 		return res.code(upstream.status).type("text/html").send(upstreamError(upstream.status, upstream.statusText));
+=======
+		return res.code(upstream.status).send(`Upstream error: ${upstream.statusText}`);
+>>>>>>> 06af642249360772a1b74833d5f4a66fd7035984
 	}
 	const contentType = upstream.headers.get("content-type") || "application/octet-stream";
 	const body = Buffer.from(await upstream.arrayBuffer());
 	sdCache.set(subPath, { body, contentType, timestamp: now });
 	res.header("Content-Type", contentType);
+<<<<<<< HEAD
 	res.header("Cache-Control", "public, max-age=300");
+=======
+>>>>>>> 06af642249360772a1b74833d5f4a66fd7035984
 	res.header("X-Cache", "MISS");
 	return res.send(body);
 });
