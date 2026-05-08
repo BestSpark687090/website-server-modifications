@@ -7,6 +7,7 @@ import { resolve, dirname } from "node:path";
 import { createRequire } from "node:module";
 //server.setLogLevel(2) //  WARN log level, only logs messages like "warn: (9278db6c) received a DATA packet for a stream which doesn't exist"
 const rReq = server.routeRequest;
+const rot13 = str => str.replace(/[a-zA-Z]/g, c => { const b = c <= 'Z' ? 65 : 97; return String.fromCharCode(((c.charCodeAt(0) - b + 13) % 26) + b); });
 
 // Static paths
 import { publicPath } from "ultraviolet-static";
@@ -137,7 +138,7 @@ const SD_BASE_URL = "https://strongdog.com/";
 
 fastify.get("/games/sd/*", async (req, res) => {
 	const subPath = req.params["*"] || "";
-	const upstreamUrl = SD_BASE_URL + subPath;
+	const upstreamUrl = SD_BASE_URL + rot13(subPath);
 	const now = Date.now();
 	const cached = sdCache.get(subPath);
 	if (cached && now - cached.timestamp < SD_CACHE_TTL_MS) {
