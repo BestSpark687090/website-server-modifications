@@ -94,6 +94,8 @@ fastify.register(fastifyStatic, {
 	decorateReply: false,
 });
 
+// WARNING: claude code written code up ahead. i was way too lazy to do this myself, so I just asked claude to do it \\
+
 // Add Content-Encoding: gzip for pre-compressed Unity .unityweb files
 fastify.addHook("onSend", (req, reply, payload, done) => {
 	if (req.url.includes(".unityweb")) reply.header("Content-Encoding", "gzip");
@@ -131,7 +133,7 @@ fastify.get("/games/gn/covers/*", async (req, res) => {
 	return res.send(body);
 });
 
-// Cache for /games/sd/ proxy responses
+// StrongDog
 const sdCache = new Map();
 const SD_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const SD_BASE_URL = "https://strongdog.com/";
@@ -160,6 +162,37 @@ fastify.get("/games/sd/*", async (req, res) => {
 	return res.send(body);
 });
 
+// BestSpark's Retro Games
+// technically i did write this code but its literally just copying and pasting mostly
+const BRGCache = new Map();
+const BRG_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 1 day cache time. Do you seriously think it's gonna change that much?
+// actually ykw screw it 7 day cache time
+// This probably isn't the BEST idea to do here but i'll deal with the consequences later on
+const BRG_BASE_URL = "https://raw.githubusercontent.com/BestSpark687090/nes-emulator/refs/heads/main/urls/"
+fastify.get("/games/brg/*", async (req, res) => {
+	const subPath = req.params["*"] || "";
+	const upstreamUrl = BRG_BASE_URL + rot13(subPath);
+	const now = Date.now();
+	const cached = BRGCache.get(subPath);
+	if (cached && now - cached.timestamp < BRG_CACHE_TTL_MS) {
+		res.header("Content-Type", cached.contentType);
+		res.header("Cache-Control", "public, max-age=300");
+		res.header("X-Cache", "HIT");
+		return res.send(cached.body);
+	}
+	const upstream = await fetch(upstreamUrl);
+	if (!upstream.ok) {
+		return res.code(upstream.status).type("text/html").send(upstreamError(upstream.status, upstream.statusText));
+	}
+	const contentType = upstream.headers.get("content-type") || "application/octet-stream";
+	const body = Buffer.from(await upstream.arrayBuffer());
+	BRGCache.set(subPath, { body, contentType, timestamp: now });
+	res.header("Content-Type", contentType);
+	res.header("Cache-Control", "public, max-age=300");
+	res.header("X-Cache", "MISS");
+	return res.send(body);
+});
+
 // expects {"username": "[username]","url": "[url]" } // It can get IP by itself I think
 fastify.post("/reportURL", (req,res)=>{
 	let body = req.body
@@ -167,6 +200,9 @@ fastify.post("/reportURL", (req,res)=>{
 	return res.code(204).send({"message": "Done."})
 })
 
+// More Claude Code mess. Don't really worry about this, this was just to debug what was going wrong with the games \\
+// Basically i made 2 separate claude instances talk to eachother in a way- i had 1 set up on the web, playing through them on a diff pc \\
+// Then I had a claude code instance open with access to the code so it could know what to fix \\
 // Debug relay WebSocket — senders push messages, viewers receive them
 const debugWss = new WebSocketServer({ noServer: true });
 const debugViewers = new Set();
@@ -193,6 +229,8 @@ debugWss.on("connection", (ws, req) => {
 		ws.on("close", () => debugViewers.delete(ws));
 	}
 });
+
+// end claude code mess for real. yes, for real. For real for real. For real for real for real. For real for real for real for real. \\
 
 // Handling WebSocket upgrades
 fastify.server.on("upgrade", (req, socket, head) => {
