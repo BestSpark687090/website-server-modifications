@@ -156,10 +156,29 @@ fastify.get("/games/sd/*", async (req, res) => {
 	const contentType = upstream.headers.get("content-type") || "application/octet-stream";
 	let body = Buffer.from(await upstream.arrayBuffer());
 	if (contentType.includes("text/html")) {
-		const baseDir = upstreamUrl.replace(/[^/]+$/, "");
+		const realPath = rot13(subPath);
+		const realDir = realPath.replace(/[^/]+$/, "");
+		function resolveProxyUrl(url) {
+			if (!url || /^(https?:\/\/|\/\/|data:|blob:|javascript:|#)/.test(url)) return null;
+			let resolved;
+			if (url.startsWith("/")) {
+				resolved = url.slice(1);
+			} else {
+				const parts = (realDir + url).split("/");
+				const out = [];
+				for (const p of parts) {
+					if (p === "..") out.pop();
+					else if (p !== ".") out.push(p);
+				}
+				resolved = out.join("/");
+			}
+			return `/games/sd/${rot13(resolved)}`;
+		}
 		let html = body.toString("utf8");
-		html = html.replace(/(<head[^>]*>)/i, `$1<base href="${baseDir}">`);
-		if (!html.includes("<base ")) html = `<base href="${baseDir}">` + html;
+		html = html.replace(/(src|href)=(["'])([^"']*)\2/gi, (match, attr, q, url) => {
+			const rw = resolveProxyUrl(url);
+			return rw ? `${attr}=${q}${rw}${q}` : match;
+		});
 		body = Buffer.from(html, "utf8");
 	}
 	sdCache.set(subPath, { body, contentType, timestamp: now });
