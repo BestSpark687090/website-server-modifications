@@ -160,6 +160,7 @@ fastify.get("/games/sd/*", async (req, res) => {
 		const realDir = realPath.replace(/[^/]+$/, "");
 		function resolveProxyUrl(url) {
 			if (!url || /^(https?:\/\/|\/\/|data:|blob:|javascript:|#)/.test(url)) return null;
+			if (url.startsWith("/games/sd/")) return url; // already a proxy URL
 			let resolved;
 			if (url.startsWith("/")) {
 				resolved = url.slice(1);
@@ -172,7 +173,9 @@ fastify.get("/games/sd/*", async (req, res) => {
 				}
 				resolved = out.join("/");
 			}
-			return `/games/sd/${rot13(resolved)}`;
+			// encodeURIComponent each segment so spaces/special chars are valid in URLs
+			const encoded = resolved.split("/").map(s => encodeURIComponent(rot13(s))).join("/");
+			return `/games/sd/${encoded}`;
 		}
 		let html = body.toString("utf8");
 		// Rewrite static src/href attributes
@@ -186,10 +189,10 @@ const _rd=${JSON.stringify(realDir)};
 const _r=s=>s.replace(/[a-zA-Z]/g,c=>{const b=c<='Z'?65:97;return String.fromCharCode(((c.charCodeAt(0)-b+13)%26)+b)});
 function _rw(url){
   if(!url||typeof url!=='string'||/^(https?:|\/\/|data:|blob:|javascript:|#)/.test(url))return url;
-  let parts=url.startsWith('/')?[url.slice(1)]:(_rd+url).split('/');
-  if(!url.startsWith('/'))parts=(_rd+url).split('/');
+  if(url.startsWith('/games/sd/'))return url;
+  const parts=url.startsWith('/')?url.slice(1).split('/'):(_rd+url).split('/');
   const out=[];for(const p of parts){if(p==='..')out.pop();else if(p!=='.')out.push(p);}
-  return'/games/sd/'+_r(out.join('/'));
+  return'/games/sd/'+out.map(s=>encodeURIComponent(_r(s))).join('/');
 }
 const oF=window.fetch;window.fetch=(u,o)=>oF(typeof u==='string'?_rw(u):u,o);
 const oO=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u,...a){return oO.call(this,m,_rw(u),...a)};
