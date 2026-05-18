@@ -175,10 +175,26 @@ fastify.get("/games/sd/*", async (req, res) => {
 			return `/games/sd/${rot13(resolved)}`;
 		}
 		let html = body.toString("utf8");
+		// Rewrite static src/href attributes
 		html = html.replace(/(src|href)=(["'])([^"']*)\2/gi, (match, attr, q, url) => {
 			const rw = resolveProxyUrl(url);
 			return rw ? `${attr}=${q}${rw}${q}` : match;
 		});
+		// Inject fetch/XHR interceptor so dynamic asset loads (e.g. Unity) also go through the proxy
+		const interceptor = `<script>(function(){
+const _rd=${JSON.stringify(realDir)};
+const _r=s=>s.replace(/[a-zA-Z]/g,c=>{const b=c<='Z'?65:97;return String.fromCharCode(((c.charCodeAt(0)-b+13)%26)+b)});
+function _rw(url){
+  if(!url||typeof url!=='string'||/^(https?:|\/\/|data:|blob:|javascript:|#)/.test(url))return url;
+  let parts=url.startsWith('/')?[url.slice(1)]:(_rd+url).split('/');
+  if(!url.startsWith('/'))parts=(_rd+url).split('/');
+  const out=[];for(const p of parts){if(p==='..')out.pop();else if(p!=='.')out.push(p);}
+  return'/games/sd/'+_r(out.join('/'));
+}
+const oF=window.fetch;window.fetch=(u,o)=>oF(typeof u==='string'?_rw(u):u,o);
+const oO=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u,...a){return oO.call(this,m,_rw(u),...a)};
+})()</script>`;
+		html = html.replace(/(<head[^>]*>)/i, `$1${interceptor}`);
 		body = Buffer.from(html, "utf8");
 	}
 	sdCache.set(subPath, { body, contentType, timestamp: now });
