@@ -140,7 +140,7 @@ const SD_BASE_URL = "https://strongdog.com/";
 
 fastify.get("/games/sd/*", async (req, res) => {
 	const subPath = req.params["*"] || "";
-	const upstreamUrl = SD_BASE_URL + rot13(subPath);
+	const upstreamUrl = SD_BASE_URL + subPath;
 	const now = Date.now();
 	const cached = sdCache.get(subPath);
 	if (cached && now - cached.timestamp < SD_CACHE_TTL_MS) {
@@ -154,52 +154,7 @@ fastify.get("/games/sd/*", async (req, res) => {
 		return res.code(upstream.status).type("text/html").send(upstreamError(upstream.status, upstream.statusText));
 	}
 	const contentType = upstream.headers.get("content-type") || "application/octet-stream";
-	let body = Buffer.from(await upstream.arrayBuffer());
-	if (contentType.includes("text/html")) {
-		const realPath = rot13(subPath);
-		const realDir = realPath.replace(/[^/]+$/, "");
-		function resolveProxyUrl(url) {
-			if (!url || /^(https?:\/\/|\/\/|data:|blob:|javascript:|#)/.test(url)) return null;
-			if (url.startsWith("/games/sd/")) return url; // already a proxy URL
-			let resolved;
-			if (url.startsWith("/")) {
-				resolved = url.slice(1);
-			} else {
-				const parts = (realDir + url).split("/");
-				const out = [];
-				for (const p of parts) {
-					if (p === "..") out.pop();
-					else if (p !== ".") out.push(p);
-				}
-				resolved = out.join("/");
-			}
-			// encodeURIComponent each segment so spaces/special chars are valid in URLs
-			const encoded = resolved.split("/").map(s => encodeURIComponent(rot13(s))).join("/");
-			return `/games/sd/${encoded}`;
-		}
-		let html = body.toString("utf8");
-		// Rewrite static src/href attributes
-		html = html.replace(/(src|href)=(["'])([^"']*)\2/gi, (match, attr, q, url) => {
-			const rw = resolveProxyUrl(url);
-			return rw ? `${attr}=${q}${rw}${q}` : match;
-		});
-		// Inject fetch/XHR interceptor so dynamic asset loads (e.g. Unity) also go through the proxy
-		const interceptor = `<script>(function(){
-const _rd=${JSON.stringify(realDir)};
-const _r=s=>s.replace(/[a-zA-Z]/g,c=>{const b=c<='Z'?65:97;return String.fromCharCode(((c.charCodeAt(0)-b+13)%26)+b)});
-function _rw(url){
-  if(!url||typeof url!=='string'||/^(https?:|\/\/|data:|blob:|javascript:|#)/.test(url))return url;
-  if(url.startsWith('/games/sd/'))return url;
-  const parts=url.startsWith('/')?url.slice(1).split('/'):(_rd+url).split('/');
-  const out=[];for(const p of parts){if(p==='..')out.pop();else if(p!=='.')out.push(p);}
-  return'/games/sd/'+out.map(s=>encodeURIComponent(_r(s))).join('/');
-}
-const oF=window.fetch;window.fetch=(u,o)=>oF(typeof u==='string'?_rw(u):u,o);
-const oO=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u,...a){return oO.call(this,m,_rw(u),...a)};
-})()</script>`;
-		html = html.replace(/(<head[^>]*>)/i, `$1${interceptor}`);
-		body = Buffer.from(html, "utf8");
-	}
+	const body = Buffer.from(await upstream.arrayBuffer());
 	sdCache.set(subPath, { body, contentType, timestamp: now });
 	res.header("Content-Type", contentType);
 	res.header("Cache-Control", "public, max-age=300");
