@@ -152,7 +152,14 @@ fastify.get("/games/sd/*", async (req, res) => {
 		return res.code(upstream.status).type("text/html").send(upstreamError(upstream.status, upstream.statusText));
 	}
 	const contentType = upstream.headers.get("content-type") || "application/octet-stream";
-	const body = Buffer.from(await upstream.arrayBuffer());
+	let body = Buffer.from(await upstream.arrayBuffer());
+	if (contentType.includes("text/html")) {
+		const baseDir = upstreamUrl.replace(/[^/]+$/, "");
+		let html = body.toString("utf8");
+		html = html.replace(/(<head[^>]*>)/i, `$1<base href="${baseDir}">`);
+		if (!html.includes("<base ")) html = `<base href="${baseDir}">` + html;
+		body = Buffer.from(html, "utf8");
+	}
 	sdCache.set(subPath, { body, contentType, timestamp: now });
 	res.header("Content-Type", contentType);
 	res.header("Cache-Control", "public, max-age=300");
