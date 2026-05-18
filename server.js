@@ -138,6 +138,30 @@ const sdCache = new Map();
 const SD_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const SD_BASE_URL = "https://strongdog.com/";
 
+fastify.get("/games/sd-img/*", async (req, res) => {
+	const subPath = req.params["*"] || "";
+	const upstreamUrl = SD_BASE_URL + rot13(subPath);
+	const now = Date.now();
+	const cached = sdCache.get("img:" + subPath);
+	if (cached && now - cached.timestamp < SD_CACHE_TTL_MS) {
+		res.header("Content-Type", cached.contentType);
+		res.header("Cache-Control", "public, max-age=300");
+		res.header("X-Cache", "HIT");
+		return res.send(cached.body);
+	}
+	const upstream = await fetch(upstreamUrl);
+	if (!upstream.ok) {
+		return res.code(upstream.status).type("text/html").send(upstreamError(upstream.status, upstream.statusText));
+	}
+	const contentType = upstream.headers.get("content-type") || "application/octet-stream";
+	const body = Buffer.from(await upstream.arrayBuffer());
+	sdCache.set("img:" + subPath, { body, contentType, timestamp: now });
+	res.header("Content-Type", contentType);
+	res.header("Cache-Control", "public, max-age=300");
+	res.header("X-Cache", "MISS");
+	return res.send(body);
+});
+
 fastify.get("/games/sd/*", async (req, res) => {
 	const subPath = req.params["*"] || "";
 	const upstreamUrl = SD_BASE_URL + subPath;
