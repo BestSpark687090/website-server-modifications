@@ -1,10 +1,11 @@
-import { server } from "@mercuryworkshop/wisp-js/server";
+import { server, logging } from "@mercuryworkshop/wisp-js/server";
 import { WebSocketServer } from "ws";
 import { appendFileSync, existsSync } from "node:fs";
 import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
 import { resolve, dirname } from "node:path";
 import { createRequire } from "node:module";
+logging.set_level(logging.WARN);
 //server.setLogLevel(2) //  WARN log level, only logs messages like "warn: (9278db6c) received a DATA packet for a stream which doesn't exist"
 const rReq = server.routeRequest;
 const rot13 = str => str.replace(/[a-zA-Z]/g, c => { const b = c <= 'Z' ? 65 : 97; return String.fromCharCode(((c.charCodeAt(0) - b + 13) % 26) + b); });
