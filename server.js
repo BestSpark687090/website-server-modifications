@@ -1,6 +1,6 @@
 import { server } from "@mercuryworkshop/wisp-js/server";
 import { WebSocketServer } from "ws";
-import { appendFileSync } from "node:fs";
+import { appendFileSync, existsSync } from "node:fs";
 import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
 import { resolve, dirname } from "node:path";
@@ -164,6 +164,8 @@ fastify.get("/games/sd-img/*", async (req, res) => {
 
 fastify.get("/games/sd/*", async (req, res) => {
 	const subPath = req.params["*"] || "";
+	const localFile = `/app/BestSpark687090/games/sd/${subPath}`;
+	if (existsSync(localFile)) return res.sendFile(`games/sd/${subPath}`, "/app/BestSpark687090");
 	const upstreamUrl = SD_BASE_URL + subPath;
 	const now = Date.now();
 	const cached = sdCache.get(subPath);
