@@ -95,6 +95,8 @@ fastify.register(fastifyStatic, {
 	decorateReply: false,
 });
 
+
+//#region games
 // WARNING: claude code written code up ahead. i was way too lazy to do this myself, so I just asked claude to do it \\
 
 // Add Content-Encoding: gzip for pre-compressed Unity .unityweb files
@@ -258,7 +260,12 @@ debugWss.on("connection", (ws, req) => {
 });
 
 // end claude code mess for real. yes, for real. For real for real. For real for real for real. For real for real for real for real. \\
-
+fastify.register(fastifyStatic, {
+	root: "/app/ports/",
+	prefix: "/games/ports/",
+	decorateReply: false,
+});
+//#endregion games
 // Handling WebSocket upgrades
 fastify.server.on("upgrade", (req, socket, head) => {
 	// console.log(`Upgrade Request: ${socket.addListener}`);
