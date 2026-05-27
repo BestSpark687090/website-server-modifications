@@ -114,7 +114,7 @@ const coversCache = new Map();
 const COVERS_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const coverURL = "https://cdn.jsdelivr.net/gh/freebuisness/covers@main";
 
-fastify.get("/games/gn/covers/*", async (req, res) => {
+fastify.get("/games/gn/covers/*", async (req, res) => { // */
 	const subPath = req.params["*"] || "";
 	const now = Date.now();
 	const cached = coversCache.get(subPath);
@@ -142,7 +142,7 @@ const sdCache = new Map();
 const SD_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const SD_BASE_URL = "https://strongdog.com/";
 
-fastify.get("/games/sd-img/*", async (req, res) => {
+fastify.get("/games/sd-img/*", async (req, res) => { // */
 	const subPath = req.params["*"] || "";
 	const upstreamUrl = SD_BASE_URL + rot13(subPath);
 	const now = Date.now();
@@ -165,24 +165,41 @@ fastify.get("/games/sd-img/*", async (req, res) => {
 	res.header("X-Cache", "MISS");
 	return res.send(body);
 });
-
-fastify.get("/games/sd/*", async (req, res) => {
+function fromNodeHeaders(nodeHeaders) {
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(nodeHeaders)) {
+    if (value !== undefined) {
+      if (Array.isArray(value)) {
+        value.forEach((v) => headers.append(key, v));
+      } else {
+        headers.append(key, value);
+      }
+    }
+  }
+  return headers;
+}
+fastify.get("/games/sd/*", async (req, res) => { //*/
 	const subPath = req.params["*"] || "";
 	const localFile = `/app/BestSpark687090/games/sd/${subPath}`;
 	if (existsSync(localFile)) return res.sendFile(`games/sd/${subPath}`, "/app/BestSpark687090");
 	const upstreamUrl = SD_BASE_URL + subPath;
 	const now = Date.now();
 	const cached = sdCache.get(subPath);
-	if (cached && now - cached.timestamp < SD_CACHE_TTL_MS) {
+        // rudimentary removal of the cache system. it'll still actually go in but... it wont go out
+	if (false && now - cached.timestamp < SD_CACHE_TTL_MS) {
 		res.header("Content-Type", cached.contentType);
 		res.header("Cache-Control", "public, max-age=300");
 		res.header("X-Cache", "HIT");
 		return res.send(cached.body);
 	}
-	const upstream = await fetch(upstreamUrl, req.headers);
+	const headers = fromNodeHeaders(req.headers);
+	const upstream = await fetch(upstreamUrl, {method: request.method,headers,request.body ? JSON.stringify(request.body) : undefined,});
 	if (!upstream.ok) {
 		return res.code(upstream.status).type("text/html").send(upstreamError(upstream.status, upstream.statusText));
 	}
+	for (const [key, value] of upstream.headers.entries()) {
+          req.header(key, value);
+        }
 	const contentType = upstream.headers.get("content-type") || "application/octet-stream";
 	const body = Buffer.from(await upstream.arrayBuffer());
 	sdCache.set(subPath, { body, contentType, timestamp: now });
