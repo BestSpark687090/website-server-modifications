@@ -348,8 +348,8 @@ fastify.server.on("upgrade", (req, socket, head) => {
     if (req.url.startsWith("/ribbon-spool/")) {
         handled = true;
         // Extract the target URL after /ribbon-spool/
-        const path = req.url.replace('/ribbon-spool/', '');
-        const targetUrl = `wss://${path}`;
+        const path = req.url//.replace('/ribbon-spool/', '');
+        const targetUrl = `wss://tetr.io${path}`;
         const proxy = new WebSocket(targetUrl, {
             headers: req.headers,
         });
@@ -367,6 +367,7 @@ fastify.server.on("upgrade", (req, socket, head) => {
         socket.on("error", (e) => {console.log(e);proxy.terminate()});
     }
     if (!handled){
+        console.log("guh?")
         socket.end();
     }
 });
