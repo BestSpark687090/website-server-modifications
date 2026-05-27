@@ -193,7 +193,7 @@ fastify.get("/games/sd/*", async (req, res) => { //*/
 		return res.send(cached.body);
 	}
 	const headers = fromNodeHeaders(req.headers);
-	const upstream = await fetch(upstreamUrl, {method: req.method,headers,req.body ? JSON.stringify(req.body) : undefined,});
+	const upstream = await fetch(upstreamUrl, {method: req.method,headers,body: req.body ? JSON.stringify(req.body) : undefined,});
 	if (!upstream.ok) {
 		return res.code(upstream.status).type("text/html").send(upstreamError(upstream.status, upstream.statusText));
 	}
