@@ -193,7 +193,7 @@ function fromNodeHeaders(nodeHeaders) {
     }
     return headers;
 }
-fastify.get("/games/sd/*", async (req, res) => { //*/
+fastify.all("/games/sd/*", async (req, res) => { //*/
     const subPath = req.params["*"] || "";
     const localFile = `/app/BestSpark687090/games/sd/${subPath}`;
     if (existsSync(localFile))
