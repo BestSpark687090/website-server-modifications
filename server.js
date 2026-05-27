@@ -198,7 +198,7 @@ fastify.get("/games/sd/*", async (req, res) => { //*/
 		return res.code(upstream.status).type("text/html").send(upstreamError(upstream.status, upstream.statusText));
 	}
 	for (const [key, value] of upstream.headers.entries()) {
-          req.header(key, value);
+          res.header(key, value);
         }
 	const contentType = upstream.headers.get("content-type") || "application/octet-stream";
 	const body = Buffer.from(await upstream.arrayBuffer());
