@@ -179,7 +179,7 @@ fastify.get("/games/sd/*", async (req, res) => {
 		res.header("X-Cache", "HIT");
 		return res.send(cached.body);
 	}
-	const upstream = await fetch(upstreamUrl);
+	const upstream = await fetch(upstreamUrl, req.headers);
 	if (!upstream.ok) {
 		return res.code(upstream.status).type("text/html").send(upstreamError(upstream.status, upstream.statusText));
 	}
