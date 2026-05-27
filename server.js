@@ -193,6 +193,14 @@ function fromNodeHeaders(nodeHeaders) {
     }
     return headers;
 }
+// Uhhhhhh...
+fastify.addContentTypeParser('*', function (request, payload, done) {
+  let data = [];
+  payload.on('data', chunk => data.push(chunk));
+  payload.on('end', () => {
+    done(null, Buffer.concat(data));
+  });
+});
 fastify.all("/games/sd/*", async (req, res) => { //*/
     const subPath = req.params["*"] || "";
     const localFile = `/app/BestSpark687090/games/sd/${subPath}`;
