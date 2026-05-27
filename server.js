@@ -20,7 +20,7 @@ let epoxyImportPath = resolve(baremuxPath + "/../../epoxy-transport/dist");
 let ePath = "";
 let pPrefix = "/pxy"
 import { scramjetPath } from "@mercuryworkshop/scramjet/path";
-const controller = dirname(_require.resolve("@mercuryworkshop/scramjet-controller/dist/controller.api.js"));
+import * as controller from '@mercuryworkshop/scramjet-controller';
 const controllerPath = controller.config.scramjetPath;
 const libcurlPath = dirname(_require.resolve("@mercuryworkshop/libcurl-transport"));
 let sjPrefix = "/sjp"
