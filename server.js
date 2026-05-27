@@ -363,8 +363,8 @@ fastify.server.on("upgrade", (req, socket, head) => {
             proxy._socket.pipe(socket).pipe(proxy._socket);
         });
 
-        proxy.on("error", () => socket.end());
-        socket.on("error", () => proxy.terminate());
+        proxy.on("error", (e) => {console.log(e);socket.end()});
+        socket.on("error", (e) => {console.log(e);proxy.terminate()});
     }
     if (!handled){
         socket.end();
