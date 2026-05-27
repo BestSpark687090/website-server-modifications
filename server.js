@@ -1,5 +1,5 @@
 import { server, logging } from "@mercuryworkshop/wisp-js/server";
-import { WebSocketServer } from "ws";
+import { WebSocketServer, WebSocket } from "ws";
 import { appendFileSync, existsSync } from "node:fs";
 import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
