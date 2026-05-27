@@ -194,14 +194,15 @@ function fromNodeHeaders(nodeHeaders) {
     return headers;
 }
 // Uhhhhhh...
-fastify.addContentTypeParser('*', function (request, payload, done) {
-  let data = [];
-  payload.on('data', chunk => data.push(chunk));
-  payload.on('end', () => {
-    done(null, Buffer.concat(data));
-  });
+fastify.addContentTypeParser("*", function (request, payload, done) {
+    let data = [];
+    payload.on("data", (chunk) => data.push(chunk));
+    payload.on("end", () => {
+        done(null, Buffer.concat(data));
+    });
 });
-fastify.all("/games/sd/*", async (req, res) => { //*/
+fastify.all("/games/sd/*", async (req, res) => {
+    //*/
     const subPath = req.params["*"] || "";
     const localFile = `/app/BestSpark687090/games/sd/${subPath}`;
     if (existsSync(localFile))
@@ -329,18 +330,44 @@ fastify.register(fastifyStatic, {
 //#endregion games
 // Handling WebSocket upgrades
 fastify.server.on("upgrade", (req, socket, head) => {
+    let handled = false
     // console.log(`Upgrade Request: ${socket.addListener}`);
     if (req.url.endsWith("/wisp/")) {
+        handled = true;
         rReq(req, socket, head);
     } else if (req.url && req.url.startsWith("/debug-ws")) {
+        handled = true;
         debugWss.handleUpgrade(req, socket, head, (ws) =>
             debugWss.emit("connection", ws, req),
         );
     } else if (req.url && req.url.startsWith(pPrefix + "/ultrav/service/")) {
+        handled = true;
         console.log(`WebSocket Upgrade URL: ${req.url}`);
-    } else {
-        console.log("ended socket");
-        socket.end(); // Close the connection for unsupported routes
+    }
+    // StrongDog tetr.io WS handling
+    if (req.url.startsWith("/ribbon-spool/")) {
+        handled = true;
+        // Extract the target URL after /ribbon-spool/
+        const path = req.url.replace('/ribbon-spool/', '');
+        const targetUrl = `wss://${path}`;
+        const proxy = new WebSocket(targetUrl, {
+            headers: req.headers,
+        });
+
+        proxy.on("open", () => {
+            socket.write(
+                "HTTP/1.1 101 Switching Protocols\r\n" +
+                    "Upgrade: websocket\r\n" +
+                    "Connection: Upgrade\r\n\r\n",
+            );
+            proxy._socket.pipe(socket).pipe(proxy._socket);
+        });
+
+        proxy.on("error", () => socket.end());
+        socket.on("error", () => proxy.terminate());
+    }
+    if (!handled){
+        socket.end();
     }
 });
 
