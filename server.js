@@ -408,25 +408,38 @@ fastify.server.on("upgrade", (req, socket, head) => {
                 },
             );
 
-            // Wire BEFORE open fires
+            const queue = [];
+            let proxyReady = false;
+
             clientWs.on("message", (data, isBinary) => {
-                if (proxy.readyState === WebSocket.OPEN)
+                if (proxyReady) {
                     proxy.send(data, { binary: isBinary });
+                } else {
+                    queue.push({ data, isBinary });
+                }
+            });
+
+            proxy.on("open", () => {
+                proxyReady = true;
+                // Flush queued messages in order
+                for (const msg of queue) {
+                    proxy.send(msg.data, { binary: msg.isBinary });
+                }
+                queue.length = 0;
             });
 
             proxy.on("message", (data, isBinary) => {
-                console.log(
-                    "upstream → client:",
-                    isBinary ? `binary(${data.length})` : data,
-                );
                 if (clientWs.readyState === WebSocket.OPEN)
                     clientWs.send(data, { binary: isBinary });
             });
-
-            // open just for logging now
-            proxy.on("open", () => console.log("proxy connected to upstream"));
-            proxy.on("error", (e) => console.error("proxy error:", e));
-            clientWs.on("error", (e) => console.error("client error:", e));
+            proxy.on("error", (e) => {
+                console.error("proxy error:", e);
+                clientWs.terminate();
+            });
+            clientWs.on("error", (e) => {
+                console.error("client error:", e);
+                proxy.terminate();
+            });
 
             // Also log unexpected closes
             proxy.on("close", (code, reason) =>
@@ -449,7 +462,9 @@ fastify.server.on("upgrade", (req, socket, head) => {
             // });
 
             proxy.on("close", () => clientWs.terminate());
-            clientWs.on("close", () => proxy.terminate());
+            clientWs.on("close", () => {
+                if (proxy.readyState === WebSocket.OPEN) proxy.terminate();
+            });
         });
     }
     if (!handled) {
