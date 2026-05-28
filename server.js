@@ -202,10 +202,23 @@ fastify.addContentTypeParser("*", function (request, payload, done) {
         done(null, Buffer.concat(data));
     });
 });
+const STRIP_REQUEST_HEADERS = new Set([
+    "host", "cdn-loop", "cf-connecting-ip", "cf-ipcountry",
+    "cf-ray", "cf-visitor", "x-forwarded-for", "x-forwarded-host",
+    "x-forwarded-proto", "via",
+    "sec-fetch-dest", "sec-fetch-mode", "sec-fetch-site", "sec-fetch-user", "sec-gpc",
+]);
+
 const HOP_BY_HOP = new Set([
-    "connection", "keep-alive", "transfer-encoding",
-    "te", "upgrade", "proxy-authorization", "proxy-authenticate",
-    "trailer", "content-length", // let Fastify set this from the actual buffer
+    "connection",
+    "keep-alive",
+    "transfer-encoding",
+    "te",
+    "upgrade",
+    "proxy-authorization",
+    "proxy-authenticate",
+    "trailer",
+    "content-length",
 ]);
 
 fastify.all("/games/sd/*", async (req, res) => {
@@ -215,10 +228,19 @@ fastify.all("/games/sd/*", async (req, res) => {
     const localFile = `/app/BestSpark687090/games/sd/${subPath}`;
     if (existsSync(localFile))
         return res.sendFile(`games/sd/${subPath}`, "/app/BestSpark687090");
+    if (subPath.endsWith("logoo.png")) return res.sendFile("games/sd/logoo.png", "/app/BestSpark687090");
 
     // Forward request upstream
     const upstreamUrl = SD_BASE_URL + subPath;
     const headers = fromNodeHeaders(req.headers);
+
+    for (const key of STRIP_REQUEST_HEADERS) headers.delete(key);
+
+    if (subPath.includes("tetr")) {
+        headers.set("origin", "https://tetr.io");
+        headers.set("referer", "https://tetr.io/");
+        console.log("using new one from gitig")
+    }
 
     const hasBody = req.method !== "GET" && req.method !== "HEAD";
 
@@ -227,19 +249,19 @@ fastify.all("/games/sd/*", async (req, res) => {
         headers,
         body: hasBody ? req.body : undefined,
     });
-
-    if (!upstream.ok) {
-        return res
-            .code(upstream.status)
-            .type("text/html")
-            .send(upstreamError(upstream.status, upstream.statusText));
-    }
-
     // Forward upstream headers, skipping hop-by-hop
     for (const [key, value] of upstream.headers.entries()) {
         if (!HOP_BY_HOP.has(key.toLowerCase())) {
             res.header(key, value);
         }
+    }
+    if (!upstream.ok&&upstream.status!=403) {
+        const errBody = await upstream.text().catch(() => "(unreadable)");  
+        console.log(`upstream ${upstream.status} for ${upstreamUrl}:`, errBody);
+        return res
+            .code(upstream.status)
+            .type("text/html")
+            .send(upstreamError(upstream.status, upstream.statusText));
     }
 
     const body = Buffer.from(await upstream.arrayBuffer());
