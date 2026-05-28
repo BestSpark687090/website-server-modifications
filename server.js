@@ -202,44 +202,47 @@ fastify.addContentTypeParser("*", function (request, payload, done) {
         done(null, Buffer.concat(data));
     });
 });
+const HOP_BY_HOP = new Set([
+    "connection", "keep-alive", "transfer-encoding",
+    "te", "upgrade", "proxy-authorization", "proxy-authenticate",
+    "trailer", "content-length", // let Fastify set this from the actual buffer
+]);
+
 fastify.all("/games/sd/*", async (req, res) => {
-    //*/
     const subPath = req.params["*"] || "";
+
+    // Serve local file if it exists
     const localFile = `/app/BestSpark687090/games/sd/${subPath}`;
     if (existsSync(localFile))
         return res.sendFile(`games/sd/${subPath}`, "/app/BestSpark687090");
+
+    // Forward request upstream
     const upstreamUrl = SD_BASE_URL + subPath;
-    const now = Date.now();
-    const cached = sdCache.get(subPath);
-    // rudimentary removal of the cache system. it'll still actually go in but... it wont go out
-    if (false && now - cached.timestamp < SD_CACHE_TTL_MS) {
-        res.header("Content-Type", cached.contentType);
-        res.header("Cache-Control", "public, max-age=300");
-        res.header("X-Cache", "HIT");
-        return res.send(cached.body);
-    }
     const headers = fromNodeHeaders(req.headers);
+
+    const hasBody = req.method !== "GET" && req.method !== "HEAD";
+
     const upstream = await fetch(upstreamUrl, {
         method: req.method,
         headers,
-        body: req.body,
+        body: hasBody ? req.body : undefined,
     });
+
     if (!upstream.ok) {
         return res
             .code(upstream.status)
             .type("text/html")
             .send(upstreamError(upstream.status, upstream.statusText));
     }
+
+    // Forward upstream headers, skipping hop-by-hop
     for (const [key, value] of upstream.headers.entries()) {
-        res.header(key, value);
+        if (!HOP_BY_HOP.has(key.toLowerCase())) {
+            res.header(key, value);
+        }
     }
-    const contentType =
-        upstream.headers.get("content-type") || "application/octet-stream";
+
     const body = Buffer.from(await upstream.arrayBuffer());
-    sdCache.set(subPath, { body, contentType, timestamp: now });
-    // res.header("Content-Type", contentType);
-    res.header("Cache-Control", "public, max-age=300");
-    res.header("X-Cache", "MISS");
     return res.send(body);
 });
 
