@@ -348,8 +348,8 @@ fastify.server.on("upgrade", (req, socket, head) => {
     if (req.url.startsWith("/ribbon-spool/")) {
         handled = true;
         // Extract the target URL after /ribbon-spool/
-        const path = req.url.replace('/ribbon-spool/', '');
-        const targetUrl = `wss://${path}`;
+        // const path = req.url.replace('/ribbon-spool/', '');
+        const targetUrl = `wss://strongdog.com${path}`;
         const proxy = new WebSocket(targetUrl, {
             headers: req.headers,
         });
