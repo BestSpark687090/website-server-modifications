@@ -367,7 +367,22 @@ fastify.server.on("upgrade", (req, socket, head) => {
                     },
                 },
             );
+            proxy.on("error", (e) => console.error("proxy error:", e));
+            clientWs.on("error", (e) => console.error("client error:", e));
 
+            // Also log unexpected closes
+            proxy.on("close", (code, reason) =>
+                console.log("proxy closed:", code, reason?.toString()),
+            );
+            clientWs.on("close", (code, reason) =>
+                console.log("client closed:", code, reason?.toString()),
+            );
+            process.on("uncaughtException", (e) =>
+                console.error("uncaught:", e),
+            );
+            process.on("unhandledRejection", (e) =>
+                console.error("unhandled rejection:", e),
+            );
             proxy.on("open", () => {
                 clientWs.on("message", (data, isBinary) => {
                     if (proxy.readyState === WebSocket.OPEN)
