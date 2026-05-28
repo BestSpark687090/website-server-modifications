@@ -402,6 +402,8 @@ fastify.server.on("upgrade", (req, socket, head) => {
                     headers: {
                         "sec-websocket-protocol": protocol,
                         "user-agent": req.headers["user-agent"],
+                        cookie: req.headers["cookie"],
+                        origin: "https://tetr.io", // override this
                     },
                 },
             );
