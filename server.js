@@ -380,21 +380,14 @@ fastify.server.on("upgrade", (req, socket, head) => {
                 });
             });
 
-            proxy.on("close", (code, reason) => clientWs.close(code, reason));
-            clientWs.on("close", (code, reason) => {
-                if (proxy.readyState === WebSocket.OPEN)
-                    proxy.close(code, reason);
-            });
+            // proxy.on("close", (code, reason) => clientWs.close(code, reason));
+            // clientWs.on("close", (code, reason) => {
+            //     if (proxy.readyState === WebSocket.OPEN)
+            //         proxy.close(code, reason);
+            // });
 
-            proxy.on("close", (code, reason) => {
-                if (clientWs.readyState === WebSocket.OPEN)
-                    clientWs.close(code || 1000);
-            });
-
-            clientWs.on("close", (code, reason) => {
-                if (proxy.readyState === WebSocket.OPEN)
-                    proxy.close(code || 1000);
-            });
+            proxy.on("close", () => clientWs.terminate());
+            clientWs.on("close", () => proxy.terminate());
         });
     }
     if (!handled) {
