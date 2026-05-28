@@ -18,6 +18,7 @@ const rot13 = (str) =>
 import { publicPath } from "ultraviolet-static";
 import { uvPath } from "@titaniumnetwork-dev/ultraviolet";
 import { baremuxPath } from "@mercuryworkshop/bare-mux/node";
+import crypto from "crypto";
 import { fileURLToPath } from "url";
 const _require = createRequire(import.meta.url);
 let epoxyImportPath = resolve(baremuxPath + "/../../epoxy-transport/dist");
@@ -329,8 +330,9 @@ fastify.register(fastifyStatic, {
 });
 //#endregion games
 // Handling WebSocket upgrades
+const wss = new WebSocketServer({ noServer: true });
 fastify.server.on("upgrade", (req, socket, head) => {
-    let handled = false
+    let handled = false;
     // console.log(`Upgrade Request: ${socket.addListener}`);
     if (req.url.endsWith("/wisp/")) {
         handled = true;
@@ -348,26 +350,54 @@ fastify.server.on("upgrade", (req, socket, head) => {
     if (req.url.startsWith("/ribbon-spool/")) {
         handled = true;
         // Extract the target URL after /ribbon-spool/
-        const path = req.url.replace('/ribbon-spool/', '');
+        const path = req.url.replace("/ribbon-spool/", "");
         const targetUrl = `wss://${path}`;
-        const proxy = new WebSocket(targetUrl, {
-            headers: req.headers,
-        },req.headers["sec-websocket-protocol"]);
-        
-        proxy.on("open", () => {
-            socket.write(
-                "HTTP/1.1 101 Switching Protocols\r\n" +
-                    "Upgrade: websocket\r\n" +
-                    "Connection: Upgrade\r\n\r\n",
-            );
-            proxy._socket.pipe(socket).pipe(proxy._socket);
-        });
+        const protocol = req.headers["sec-websocket-protocol"];
 
-        proxy.on("error", (e) => {console.log(e);socket.end()});
-        socket.on("error", (e) => {console.log(e);proxy.terminate()});
+        wss.handleUpgrade(req, socket, head, (clientWs) => {
+            const proxy = new WebSocket(
+                targetUrl,
+                protocol ? protocol.split(",").map((p) => p.trim()) : [],
+                {
+                    headers: {
+                        // Forward these — don't forward the full req.headers or you'll
+                        // send the client's Host, which will confuse the upstream
+                        "sec-websocket-protocol": protocol,
+                        "user-agent": req.headers["user-agent"],
+                    },
+                },
+            );
+
+            proxy.on("open", () => {
+                clientWs.on("message", (data, isBinary) => {
+                    if (proxy.readyState === WebSocket.OPEN)
+                        proxy.send(data, { binary: isBinary });
+                });
+
+                proxy.on("message", (data, isBinary) => {
+                    if (clientWs.readyState === WebSocket.OPEN)
+                        clientWs.send(data, { binary: isBinary });
+                });
+            });
+
+            proxy.on("close", (code, reason) => clientWs.close(code, reason));
+            clientWs.on("close", (code, reason) => {
+                if (proxy.readyState === WebSocket.OPEN)
+                    proxy.close(code, reason);
+            });
+
+            proxy.on("error", (e) => {
+                console.error("proxy error:", e);
+                clientWs.terminate();
+            });
+            clientWs.on("error", (e) => {
+                console.error("client error:", e);
+                proxy.terminate();
+            });
+        });
     }
-    if (!handled){
-        console.log("guh?")
+    if (!handled) {
+        console.log("guh?");
         socket.end();
     }
 });
