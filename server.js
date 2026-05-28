@@ -354,19 +354,75 @@ fastify.server.on("upgrade", (req, socket, head) => {
         const targetUrl = `wss://${path}`;
         const protocol = req.headers["sec-websocket-protocol"];
 
+        // wss.handleUpgrade(req, socket, head, (clientWs) => {
+        //     const proxy = new WebSocket(
+        //         targetUrl,
+        //         protocol ? protocol.split(",").map((p) => p.trim()) : [],
+        //         {
+        //             headers: {
+        //                 // Forward these — don't forward the full req.headers or you'll
+        //                 // send the client's Host, which will confuse the upstream
+        //                 "sec-websocket-protocol": protocol,
+        //                 "user-agent": req.headers["user-agent"],
+        //             },
+        //         },
+        //     );
+        //     proxy.on("error", (e) => console.error("proxy error:", e));
+        //     clientWs.on("error", (e) => console.error("client error:", e));
+
+        //     // Also log unexpected closes
+        //     proxy.on("close", (code, reason) =>
+        //         console.log("proxy closed:", code, reason?.toString()),
+        //     );
+        //     clientWs.on("close", (code, reason) =>
+        //         console.log("client closed:", code, reason?.toString()),
+        //     );
+        //     process.on("uncaughtException", (e) =>
+        //         console.error("uncaught:", e),
+        //     );
+        //     process.on("unhandledRejection", (e) =>
+        //         console.error("unhandled rejection:", e),
+        //     );
+        //     proxy.on("open", () => {
+        //         clientWs.on("message", (data, isBinary) => {
+        //             if (proxy.readyState === WebSocket.OPEN)
+        //                 proxy.send(data, { binary: isBinary });
+        //         });
+
+        //         proxy.on("message", (data, isBinary) => {
+        //             if (clientWs.readyState === WebSocket.OPEN)
+        //                 clientWs.send(data, { binary: isBinary });
+        //         });
+        //     });
         wss.handleUpgrade(req, socket, head, (clientWs) => {
             const proxy = new WebSocket(
                 targetUrl,
                 protocol ? protocol.split(",").map((p) => p.trim()) : [],
                 {
                     headers: {
-                        // Forward these — don't forward the full req.headers or you'll
-                        // send the client's Host, which will confuse the upstream
                         "sec-websocket-protocol": protocol,
                         "user-agent": req.headers["user-agent"],
                     },
                 },
             );
+
+            // Wire BEFORE open fires
+            clientWs.on("message", (data, isBinary) => {
+                if (proxy.readyState === WebSocket.OPEN)
+                    proxy.send(data, { binary: isBinary });
+            });
+
+            proxy.on("message", (data, isBinary) => {
+                console.log(
+                    "upstream → client:",
+                    isBinary ? `binary(${data.length})` : data,
+                );
+                if (clientWs.readyState === WebSocket.OPEN)
+                    clientWs.send(data, { binary: isBinary });
+            });
+
+            // open just for logging now
+            proxy.on("open", () => console.log("proxy connected to upstream"));
             proxy.on("error", (e) => console.error("proxy error:", e));
             clientWs.on("error", (e) => console.error("client error:", e));
 
@@ -383,18 +439,7 @@ fastify.server.on("upgrade", (req, socket, head) => {
             process.on("unhandledRejection", (e) =>
                 console.error("unhandled rejection:", e),
             );
-            proxy.on("open", () => {
-                clientWs.on("message", (data, isBinary) => {
-                    if (proxy.readyState === WebSocket.OPEN)
-                        proxy.send(data, { binary: isBinary });
-                });
-
-                proxy.on("message", (data, isBinary) => {
-                    if (clientWs.readyState === WebSocket.OPEN)
-                        clientWs.send(data, { binary: isBinary });
-                });
-            });
-
+            // ... rest of error/close handlers
             // proxy.on("close", (code, reason) => clientWs.close(code, reason));
             // clientWs.on("close", (code, reason) => {
             //     if (proxy.readyState === WebSocket.OPEN)
