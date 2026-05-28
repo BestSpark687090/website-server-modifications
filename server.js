@@ -386,13 +386,14 @@ fastify.server.on("upgrade", (req, socket, head) => {
                     proxy.close(code, reason);
             });
 
-            proxy.on("error", (e) => {
-                console.error("proxy error:", e);
-                clientWs.terminate();
+            proxy.on("close", (code, reason) => {
+                if (clientWs.readyState === WebSocket.OPEN)
+                    clientWs.close(code || 1000);
             });
-            clientWs.on("error", (e) => {
-                console.error("client error:", e);
-                proxy.terminate();
+
+            clientWs.on("close", (code, reason) => {
+                if (proxy.readyState === WebSocket.OPEN)
+                    proxy.close(code || 1000);
             });
         });
     }
