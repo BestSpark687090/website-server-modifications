@@ -352,7 +352,7 @@ fastify.server.on("upgrade", (req, socket, head) => {
         const targetUrl = `wss://strongdog.com${req.url}`;
         const proxy = new WebSocket(targetUrl, {
             headers: req.headers,
-        });
+        },req.headers["sec-websocket-protocol"]);
         
         proxy.on("open", () => {
             socket.write(
