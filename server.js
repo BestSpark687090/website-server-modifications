@@ -1,6 +1,6 @@
 import { server, logging } from "@mercuryworkshop/wisp-js/server";
 import { WebSocketServer, WebSocket } from "ws";
-import { appendFileSync, existsSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, writeFileSync, readFileSync } from "node:fs";
 import { execFile, spawn } from "node:child_process";
 import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
@@ -83,6 +83,18 @@ try {
     console.warn("[scramjet-utils] package not found, /sjp/scramjet-utils/ will not be served");
 }
 let sjPrefix = "/sjp";
+
+// Dark mode inject: prepend matchMedia override to the real Scramjet inject script
+const _darkModePrefix = `(function(){const m=window.matchMedia.bind(window);window.matchMedia=function(q){const r=m(q);if(typeof q==='string'&&q.includes('prefers-color-scheme')){return new Proxy(r,{get(t,p){if(p==='matches')return q.includes('dark');const v=t[p];return typeof v==='function'?v.bind(t):v;}})}return r;};})();\n`;
+let _darkInjectCache = null;
+function getDarkInject() {
+    if (!_darkInjectCache) {
+        const inject = readFileSync(resolve(controllerPath, "controller.inject.js"), "utf-8");
+        _darkInjectCache = _darkModePrefix + inject;
+    }
+    return _darkInjectCache;
+}
+
 const fastify = Fastify({ forceCloseConnections: true, trustProxy: true });
 // Register static files
 // fastify.register(fastifyStatic, {
@@ -154,6 +166,13 @@ fastify.register(fastifyStatic, {
     prefix: "/controller/",
     decorateReply: false,
 });
+
+fastify.get("/dark-inject.js", (req, reply) =>
+    reply.type("application/javascript").send(getDarkInject())
+);
+fastify.get(sjPrefix + "/dark-inject.js", (req, reply) =>
+    reply.type("application/javascript").send(getDarkInject())
+);
 
 fastify.register(fastifyStatic, {
     root: libcurlPath,
