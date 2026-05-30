@@ -195,18 +195,31 @@ function fromNodeHeaders(nodeHeaders) {
     return headers;
 }
 // Uhhhhhh...
-fastify.addContentTypeParser("*", function (request, payload, done) {
+const rawBodyParser = function (request, payload, done) {
     let data = [];
     payload.on("data", (chunk) => data.push(chunk));
     payload.on("end", () => {
         done(null, Buffer.concat(data));
     });
-});
+};
+fastify.addContentTypeParser("application/json", rawBodyParser);
+fastify.addContentTypeParser("*", rawBodyParser);
 const STRIP_REQUEST_HEADERS = new Set([
-    "host", "cdn-loop", "cf-connecting-ip", "cf-ipcountry",
-    "cf-ray", "cf-visitor", "x-forwarded-for", "x-forwarded-host",
-    "x-forwarded-proto", "via",
-    "sec-fetch-dest", "sec-fetch-mode", "sec-fetch-site", "sec-fetch-user", "sec-gpc",
+    "host",
+    "cdn-loop",
+    "cf-connecting-ip",
+    "cf-ipcountry",
+    "cf-ray",
+    "cf-visitor",
+    "x-forwarded-for",
+    "x-forwarded-host",
+    "x-forwarded-proto",
+    "via",
+    "sec-fetch-dest",
+    "sec-fetch-mode",
+    "sec-fetch-site",
+    "sec-fetch-user",
+    "sec-gpc",
 ]);
 
 const HOP_BY_HOP = new Set([
@@ -221,6 +234,10 @@ const HOP_BY_HOP = new Set([
     "content-length",
 ]);
 
+fastify.get("/narrow-maps-config", (req, res) => {
+    return res.redirect("/games/sd/narrow-maps-config");
+});
+
 fastify.all("/games/sd/*", async (req, res) => {
     const subPath = req.params["*"] || "";
 
@@ -228,26 +245,47 @@ fastify.all("/games/sd/*", async (req, res) => {
     const localFile = `/app/BestSpark687090/games/sd/${subPath}`;
     if (existsSync(localFile))
         return res.sendFile(`games/sd/${subPath}`, "/app/BestSpark687090");
-    if (subPath.endsWith("logoo.png")) return res.sendFile("games/sd/logoo.png", "/app/BestSpark687090");
+    if (subPath.endsWith("logoo.png"))
+        return res.sendFile("games/sd/logoo.png", "/app/BestSpark687090");
 
     // Forward request upstream
-    const upstreamUrl = SD_BASE_URL + subPath;
+    const qs = req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "";
+    const upstreamUrl = SD_BASE_URL + subPath + qs;
+
+    // Cache GET responses
+    if (req.method === "GET") {
+        const cacheKey = upstreamUrl;
+        const now = Date.now();
+        const cached = sdCache.get(cacheKey);
+        if (cached && now - cached.timestamp < SD_CACHE_TTL_MS) {
+            for (const [key, value] of Object.entries(cached.headers))
+                res.header(key, value);
+            res.header("X-Cache", "HIT");
+            return res.code(cached.status).send(cached.body);
+        }
+    }
     const headers = fromNodeHeaders(req.headers);
 
     for (const key of STRIP_REQUEST_HEADERS) headers.delete(key);
+    headers.delete("content-length");
 
     if (subPath.includes("tetr")) {
         headers.set("origin", "https://tetr.io");
         headers.set("referer", "https://tetr.io/");
-        console.log("using new one from gitig")
+        console.log("using new one from gitig");
     }
-
+    // if (upstreamUrl.includes("krunker-seek-game")) {
+    //     upstreamUrl.replace(/\?hostname=[a-z.\- 0-9]/g, "?hostname=krunker.io");
+    // }
     const hasBody = req.method !== "GET" && req.method !== "HEAD";
 
     const upstream = await fetch(upstreamUrl, {
         method: req.method,
         headers,
         body: hasBody ? req.body : undefined,
+    }).catch((err) => {
+        console.error("[sd proxy] fetch failed:", upstreamUrl, err);
+        throw err;
     });
     // Forward upstream headers, skipping hop-by-hop
     for (const [key, value] of upstream.headers.entries()) {
@@ -255,16 +293,33 @@ fastify.all("/games/sd/*", async (req, res) => {
             res.header(key, value);
         }
     }
-    if (!upstream.ok&&upstream.status!=403) {
-        const errBody = await upstream.text().catch(() => "(unreadable)");  
+    for (const cookie of upstream.headers.getSetCookie()) {
+        res.header("set-cookie", cookie);
+    }
+    if (!upstream.ok && upstream.status != 403) {
+        const errBody = await upstream.text().catch(() => "(unreadable)");
         console.log(`upstream ${upstream.status} for ${upstreamUrl}:`, errBody);
         return res
             .code(upstream.status)
             .type("text/html")
             .send(upstreamError(upstream.status, upstream.statusText));
     }
-
+    res.header("Access-Control-Allow-Origin", "*");
     const body = Buffer.from(await upstream.arrayBuffer());
+    if (req.method === "GET" && upstream.ok) {
+        const cachedHeaders = {};
+        for (const [key, value] of upstream.headers.entries())
+            if (!HOP_BY_HOP.has(key.toLowerCase())) cachedHeaders[key] = value;
+        cachedHeaders["Access-Control-Allow-Origin"] = "*";
+        sdCache.set(upstreamUrl, {
+            body,
+            headers: cachedHeaders,
+            status: upstream.status,
+            timestamp: Date.now(),
+        });
+        res.header("X-Cache", "MISS");
+    }
+    res.code(upstream.status);
     return res.send(body);
 });
 
@@ -355,6 +410,49 @@ fastify.register(fastifyStatic, {
 });
 //#endregion games
 // Handling WebSocket upgrades
+function createHandlers(clientWs, proxy) {
+    const queue = [];
+    let proxyReady = false;
+
+    clientWs.on("message", (data, isBinary) => {
+        if (proxyReady) {
+            proxy.send(data, { binary: isBinary });
+        } else {
+            queue.push({ data, isBinary });
+        }
+    });
+
+    proxy.on("open", () => {
+        proxyReady = true;
+        for (const msg of queue) proxy.send(msg.data, { binary: msg.isBinary });
+        queue.length = 0;
+    });
+
+    proxy.on("message", (data, isBinary) => {
+        if (clientWs.readyState === WebSocket.OPEN)
+            clientWs.send(data, { binary: isBinary });
+    });
+
+    proxy.on("error", (e) => {
+        console.error("proxy error:", e);
+        clientWs.terminate();
+    });
+
+    clientWs.on("error", (e) => {
+        console.error("client error:", e);
+        proxy.terminate();
+    });
+
+    proxy.on("close", (code, reason) => clientWs.terminate());
+    clientWs.on("close", () => {
+        if (proxy.readyState === WebSocket.OPEN) proxy.terminate();
+    });
+
+    process.on("uncaughtException", (e) => console.error("uncaught:", e));
+    process.on("unhandledRejection", (e) =>
+        console.error("unhandled rejection:", e),
+    );
+}
 const wss = new WebSocketServer({ noServer: true });
 fastify.server.on("upgrade", (req, socket, head) => {
     let handled = false;
@@ -379,46 +477,6 @@ fastify.server.on("upgrade", (req, socket, head) => {
         const targetUrl = `wss://${path}`;
         const protocol = req.headers["sec-websocket-protocol"];
 
-        // wss.handleUpgrade(req, socket, head, (clientWs) => {
-        //     const proxy = new WebSocket(
-        //         targetUrl,
-        //         protocol ? protocol.split(",").map((p) => p.trim()) : [],
-        //         {
-        //             headers: {
-        //                 // Forward these — don't forward the full req.headers or you'll
-        //                 // send the client's Host, which will confuse the upstream
-        //                 "sec-websocket-protocol": protocol,
-        //                 "user-agent": req.headers["user-agent"],
-        //             },
-        //         },
-        //     );
-        //     proxy.on("error", (e) => console.error("proxy error:", e));
-        //     clientWs.on("error", (e) => console.error("client error:", e));
-
-        //     // Also log unexpected closes
-        //     proxy.on("close", (code, reason) =>
-        //         console.log("proxy closed:", code, reason?.toString()),
-        //     );
-        //     clientWs.on("close", (code, reason) =>
-        //         console.log("client closed:", code, reason?.toString()),
-        //     );
-        //     process.on("uncaughtException", (e) =>
-        //         console.error("uncaught:", e),
-        //     );
-        //     process.on("unhandledRejection", (e) =>
-        //         console.error("unhandled rejection:", e),
-        //     );
-        //     proxy.on("open", () => {
-        //         clientWs.on("message", (data, isBinary) => {
-        //             if (proxy.readyState === WebSocket.OPEN)
-        //                 proxy.send(data, { binary: isBinary });
-        //         });
-
-        //         proxy.on("message", (data, isBinary) => {
-        //             if (clientWs.readyState === WebSocket.OPEN)
-        //                 clientWs.send(data, { binary: isBinary });
-        //         });
-        //     });
         wss.handleUpgrade(req, socket, head, (clientWs) => {
             const proxy = new WebSocket(
                 targetUrl,
@@ -433,63 +491,36 @@ fastify.server.on("upgrade", (req, socket, head) => {
                 },
             );
 
-            const queue = [];
-            let proxyReady = false;
-
-            clientWs.on("message", (data, isBinary) => {
-                if (proxyReady) {
-                    proxy.send(data, { binary: isBinary });
-                } else {
-                    queue.push({ data, isBinary });
-                }
+            createHandlers(clientWs, proxy);
+        });
+    }
+    if (
+        req.url.startsWith("/narrow-matchmaking") ||
+        req.url.startsWith("/narrow-ws/") ||
+        req.url.startsWith("/zombs-zr/") ||
+        req.url.startsWith("/zombs-eggs/") ||
+        req.url.startsWith("/dbaiws/")
+    ) {
+        handled = true;
+        // console.log("we narrow as heck twin")
+        // forward to wss://strongdog.com/narrow-matchmaking/
+        const targetUrl = `wss://strongdog.com${req.url}`;
+        wss.handleUpgrade(req, socket, head, (clientWs) => {
+            const proxy = new WebSocket(targetUrl, {
+                headers: {
+                    // forward selected request headers
+                    "user-agent": req.headers["user-agent"],
+                    cookie: req.headers["cookie"],
+                    "sec-websocket-extensions":
+                        req.headers["sec-websocket-extensions"],
+                    "sec-websocket-key": req.headers["sec-websocket-key"],
+                    "sec-websocket-version":
+                        req.headers["sec-websocket-version"],
+                    origin: req.headers["origin"],
+                },
             });
 
-            proxy.on("open", () => {
-                proxyReady = true;
-                // Flush queued messages in order
-                for (const msg of queue) {
-                    proxy.send(msg.data, { binary: msg.isBinary });
-                }
-                queue.length = 0;
-            });
-
-            proxy.on("message", (data, isBinary) => {
-                if (clientWs.readyState === WebSocket.OPEN)
-                    clientWs.send(data, { binary: isBinary });
-            });
-            proxy.on("error", (e) => {
-                console.error("proxy error:", e);
-                clientWs.terminate();
-            });
-            clientWs.on("error", (e) => {
-                console.error("client error:", e);
-                proxy.terminate();
-            });
-
-            // Also log unexpected closes
-            proxy.on("close", (code, reason) =>
-                console.log("proxy closed:", code, reason?.toString()),
-            );
-            clientWs.on("close", (code, reason) =>
-                console.log("client closed:", code, reason?.toString()),
-            );
-            process.on("uncaughtException", (e) =>
-                console.error("uncaught:", e),
-            );
-            process.on("unhandledRejection", (e) =>
-                console.error("unhandled rejection:", e),
-            );
-            // ... rest of error/close handlers
-            // proxy.on("close", (code, reason) => clientWs.close(code, reason));
-            // clientWs.on("close", (code, reason) => {
-            //     if (proxy.readyState === WebSocket.OPEN)
-            //         proxy.close(code, reason);
-            // });
-
-            proxy.on("close", () => clientWs.terminate());
-            clientWs.on("close", () => {
-                if (proxy.readyState === WebSocket.OPEN) proxy.terminate();
-            });
+            createHandlers(clientWs, proxy);
         });
     }
     if (!handled) {
