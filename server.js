@@ -102,6 +102,9 @@ const fastify = Fastify({ forceCloseConnections: true, trustProxy: true });
 // 	prefix: pPrefix,
 // 	decorateReply: false,
 // });
+fastify.get("/ping", (req,res) => {
+    res.send("pong");
+})
 fastify.register(fastifyStatic, {
     root: publicPath,
     prefix: pPrefix,
