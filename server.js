@@ -269,7 +269,11 @@ fastify.get("/games/sd-img/*", async (req, res) => {
         res.header("X-Cache", "HIT");
         return res.send(cached.body);
     }
-    const upstream = await fetch(upstreamUrl);
+    const upstream = await fetch(upstreamUrl,{
+        headers: {
+            "Cookie": "canPass=true"
+        }
+    });
     if (!upstream.ok) {
         return res
             .code(upstream.status)
