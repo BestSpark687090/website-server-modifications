@@ -1,6 +1,6 @@
 import { server, logging } from "@mercuryworkshop/wisp-js/server";
 import { WebSocketServer, WebSocket } from "ws";
-import { appendFileSync, existsSync, writeFileSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, writeFileSync, readFileSync, createReadStream } from "node:fs";
 import { execFile, spawn } from "node:child_process";
 import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
@@ -122,6 +122,9 @@ fastify.get(pPrefix + "/ultrav/sw.js", (req, res) => {
     return res.sendFile("uv/sw.js", publicPath);
 });
 // Register additional static routes
+fastify.get(pPrefix+"/ultrav/bundle.js", function(req,res){
+    return res.sendFile("uv.bundle.js",uvPath)
+})
 fastify.register(fastifyStatic, {
     root: uvPath,
     prefix: pPrefix + "/ultrav/",
@@ -148,14 +151,18 @@ fastify.register(fastifyStatic, {
 
 // Scramjet runtime assets: registered both under /sjp/<name>/ (for the sjp
 // prefix context) and at /<name>/ (absolute paths used by the HTML/SW).
+fastify.get("/sjp/sj/sj.js",function(req,res){
+    reply.type("application/javascript");
+    return reply.send(createReadStream(resolve("node_modules/@mercuryworkshop/scramjet/scramjet.js")))
+})
 fastify.register(fastifyStatic, {
     root: scramjetPath,
-    prefix: sjPrefix + "/scramjet/",
+    prefix: sjPrefix + "/sj/",
     decorateReply: false,
 });
 fastify.register(fastifyStatic, {
     root: scramjetPath,
-    prefix: "/scramjet/",
+    prefix: "/sj/",
     decorateReply: false,
 });
 
@@ -195,14 +202,18 @@ fastify.register(fastifyStatic, {
 });
 
 if (scramjetUtilsPath) {
+    fastify.get("/sjp/sju/sju.js", (req,res)=>{
+        res.type("application/javascript");
+        return res.send(createReadStream(resolve("node_modules/@mercuryworkshop/scramjet-utils/scramjet-utils.js")))
+    })
     fastify.register(fastifyStatic, {
         root: scramjetUtilsPath,
-        prefix: sjPrefix + "/scramjet-utils/",
+        prefix: sjPrefix + "/sju/",
         decorateReply: false,
     });
     fastify.register(fastifyStatic, {
         root: scramjetUtilsPath,
-        prefix: "/scramjet-utils/",
+        prefix: "/sju/",
         decorateReply: false,
     });
 }
@@ -354,7 +365,7 @@ fastify.get("/narrow-maps-config", (req, res) => {
     return res.redirect("/games/sd/narrow-maps-config");
 });
 
-fastify.all("/games/sd/*", async (req, res) => {
+fastify.all("/games/sd/*", async (req, res) => { // */
     const subPath = req.params["*"] || "";
 
     // Serve local file if it exists
@@ -390,6 +401,7 @@ fastify.all("/games/sd/*", async (req, res) => {
         headers.set("referer", "https://tetr.io/");
         // console.log("using new one from gitig");
     }
+    headers.set("Cookie", "canPass=true"); //to ACTUALLY work
     // if (upstreamUrl.includes("krunker-seek-game")) {
     //     upstreamUrl.replace(/\?hostname=[a-z.\- 0-9]/g, "?hostname=krunker.io");
     // }
@@ -447,7 +459,7 @@ const BRG_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 1 day cache time. Do you se
 // This probably isn't the BEST idea to do here but i'll deal with the consequences later on
 const BRG_BASE_URL =
     "https://raw.githubusercontent.com/BestSpark687090/nes-emulator/refs/heads/main/urls/";
-fastify.get("/games/brg/*", async (req, res) => {
+fastify.get("/games/brg/*", async (req, res) => { // */
     const subPath = req.params["*"] || "";
     const upstreamUrl = BRG_BASE_URL + rot13(subPath);
     const now = Date.now();
@@ -567,7 +579,7 @@ const poxelPageCache  = new Map(); // regular poxel.io pages — short TTL
 const POXEL_ASSET_TTL = 7 * 24 * 60 * 60 * 1000;
 const POXEL_PAGE_TTL  = 5 * 60 * 1000;
 
-fastify.all("/games/ports/poxel.io/*", async (req, res) => {
+fastify.all("/games/ports/poxel.io/*", async (req, res) => { // */
     const subPath = req.params["*"] || "index.html";
     const localFile = `/app/ports/poxel.io/${subPath}`;
     if (existsSync(localFile))
