@@ -221,10 +221,19 @@ if (scramjetUtilsPath) {
 //#region games
 // WARNING: claude code written code up ahead. i was way too lazy to do this myself, so I just asked claude to do it \\
 
-// Add Content-Encoding: gzip for pre-compressed Unity .unityweb files
+// Add Content-Encoding: gzip for pre-compressed Unity .unityweb files... but fixed :D
 fastify.addHook("onSend", (req, reply, payload, done) => {
-    if (req.url.includes(".unityweb")) reply.header("Content-Encoding", "gzip");
-    done(null, payload);
+  if (req.url.includes(".unityweb")) {
+    const isGzip = Buffer.isBuffer(payload) &&
+                   payload.length > 2 &&
+                   payload[0] === 0x1f &&
+                   payload[1] === 0x8b;
+
+    if (isGzip) {
+      reply.header("Content-Encoding", "gzip");
+    }
+  }
+  done(null, payload);
 });
 
 const upstreamError = (status, msg) =>
