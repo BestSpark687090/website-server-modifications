@@ -152,8 +152,12 @@ fastify.register(fastifyStatic, {
 // Scramjet runtime assets: registered both under /sjp/<name>/ (for the sjp
 // prefix context) and at /<name>/ (absolute paths used by the HTML/SW).
 fastify.get("/sjp/sj/sj.js",function(req,res){
-    reply.type("application/javascript");
-    return reply.send(createReadStream(resolve("node_modules/@mercuryworkshop/scramjet/scramjet.js")))
+    res.type("application/javascript");
+    return res.send(createReadStream(resolve(scramjetPath, "scramjet.js")))
+})
+fastify.get("/sjp/sj/sj.wasm",function(req,res){
+    res.type("application/wasm");
+    return res.send(createReadStream(resolve(scramjetPath, "scramjet.wasm")))
 })
 fastify.register(fastifyStatic, {
     root: scramjetPath,
@@ -204,7 +208,7 @@ fastify.register(fastifyStatic, {
 if (scramjetUtilsPath) {
     fastify.get("/sjp/sju/sju.js", (req,res)=>{
         res.type("application/javascript");
-        return res.send(createReadStream(resolve("node_modules/@mercuryworkshop/scramjet-utils/scramjet-utils.js")))
+        return res.send(createReadStream(resolve(scramjetUtilsPath, "scramjet-utils.js")))
     })
     fastify.register(fastifyStatic, {
         root: scramjetUtilsPath,
@@ -470,7 +474,7 @@ const BRG_BASE_URL =
     "https://raw.githubusercontent.com/BestSpark687090/nes-emulator/refs/heads/main/urls/";
 fastify.get("/games/brg/*", async (req, res) => { // */
     const subPath = req.params["*"] || "";
-    const upstreamUrl = BRG_BASE_URL + rot13(subPath);
+    const upstreamUrl = BRG_BASE_URL + subPath;//rot13(subPath);
     const now = Date.now();
     const cached = BRGCache.get(subPath);
     if (cached && now - cached.timestamp < BRG_CACHE_TTL_MS) {
