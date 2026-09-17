@@ -7,6 +7,9 @@ import fastifyStatic from "@fastify/static";
 import { resolve, dirname } from "node:path";
 import { createRequire } from "node:module";
 logging.set_level(logging.WARN);
+// Restrict proxied destinations to standard web ports so this proxy can't be
+// used to relay/scan arbitrary services (abuse reports came in for port 11434/Ollama).
+server.options.port_whitelist = [80, 443];
 //server.setLogLevel(2) //  WARN log level, only logs messages like "warn: (9278db6c) received a DATA packet for a stream which doesn't exist"
 
 // Write Python WS proxy to /tmp so it's available inside the container
@@ -67,32 +70,30 @@ const _require = createRequire(import.meta.url);
 let epoxyImportPath = resolve(baremuxPath + "/../../epoxy-transport/dist");
 let ePath = "";
 let pPrefix = "/pxy";
-import { scramjetPath } from "@mercuryworkshop/scramjet/path";
-const controllerPath = dirname(
-    _require.resolve("@mercuryworkshop/scramjet-controller"),
-);
+// SJ runtime assets are served from local disk (shipped in the image) instead
+// of being resolved out of node_modules.
+const _0x1b7 = "/app/scramjet-proxy/_sjx";
+const _0x3f1a = resolve(_0x1b7, "a");
+const _0x2c8e = resolve(_0x1b7, "b");
 const libcurlPath = dirname(
     _require.resolve("@mercuryworkshop/libcurl-transport"),
 );
-let scramjetUtilsPath;
-try {
-    scramjetUtilsPath = dirname(
-        _require.resolve("@mercuryworkshop/scramjet-utils"),
-    );
-} catch {
-    console.warn("[scramjet-utils] package not found, /sjp/scramjet-utils/ will not be served");
+let _0x9d4b = resolve(_0x1b7, "c");
+if (!existsSync(resolve(_0x9d4b, "util.js"))) {
+    _0x9d4b = null;
+    console.warn("[scramjet-utils] assets not found, /sjp/scramjet-utils/ will not be served");
 }
 let sjPrefix = "/sjp";
 
 // Dark mode inject: prepend matchMedia override to the real Scramjet inject script
-const _darkModePrefix = `(function(){const m=window.matchMedia.bind(window);window.matchMedia=function(q){const r=m(q);if(typeof q==='string'&&q.includes('prefers-color-scheme')){return new Proxy(r,{get(t,p){if(p==='matches')return q.includes('dark');const v=t[p];return typeof v==='function'?v.bind(t):v;}})}return r;};})();\n`;
-let _darkInjectCache = null;
-function getDarkInject() {
-    if (!_darkInjectCache) {
-        const inject = readFileSync(resolve(controllerPath, "controller.inject.js"), "utf-8");
-        _darkInjectCache = _darkModePrefix + inject;
+const _0x5e1 = `(function(){const m=window.matchMedia.bind(window);window.matchMedia=function(q){const r=m(q);if(typeof q==='string'&&q.includes('prefers-color-scheme')){return new Proxy(r,{get(t,p){if(p==='matches')return q.includes('dark');const v=t[p];return typeof v==='function'?v.bind(t):v;}})}return r;};})();\n`;
+let _0x5e2 = null;
+function _0x5e3() {
+    if (!_0x5e2) {
+        const _0x5e4 = readFileSync(resolve(_0x2c8e, "controller.inject.js"), "utf-8");
+        _0x5e2 = _0x5e1 + _0x5e4;
     }
-    return _darkInjectCache;
+    return _0x5e2;
 }
 
 const fastify = Fastify({ forceCloseConnections: true, trustProxy: true });
@@ -138,7 +139,7 @@ fastify.register(fastifyStatic, {
 
 fastify.register(fastifyStatic, {
     root: baremuxPath,
-    prefix: pPrefix + "/baremux/",
+    prefix: pPrefix + "/baremux/", // CHANGE TO /bmux/ LATER
     decorateReply: false,
 });
 
@@ -153,39 +154,39 @@ fastify.register(fastifyStatic, {
 // prefix context) and at /<name>/ (absolute paths used by the HTML/SW).
 fastify.get("/sjp/sj/sj.js",function(req,res){
     res.type("application/javascript");
-    return res.send(createReadStream(resolve(scramjetPath, "scramjet.js")))
+    return res.send(createReadStream(resolve(_0x3f1a, "core.js")))
 })
 fastify.get("/sjp/sj/sj.wasm",function(req,res){
     res.type("application/wasm");
-    return res.send(createReadStream(resolve(scramjetPath, "scramjet.wasm")))
+    return res.send(createReadStream(resolve(_0x3f1a, "core.wasm")))
 })
 fastify.register(fastifyStatic, {
-    root: scramjetPath,
+    root: _0x3f1a,
     prefix: sjPrefix + "/sj/",
     decorateReply: false,
 });
 fastify.register(fastifyStatic, {
-    root: scramjetPath,
+    root: _0x3f1a,
     prefix: "/sj/",
     decorateReply: false,
 });
 
 fastify.register(fastifyStatic, {
-    root: controllerPath,
+    root: _0x2c8e,
     prefix: sjPrefix + "/controller/",
     decorateReply: false,
 });
 fastify.register(fastifyStatic, {
-    root: controllerPath,
+    root: _0x2c8e,
     prefix: "/controller/",
     decorateReply: false,
 });
 
 fastify.get("/dark-inject.js", (req, reply) =>
-    reply.type("application/javascript").send(getDarkInject())
+    reply.type("application/javascript").send(_0x5e3())
 );
 fastify.get(sjPrefix + "/dark-inject.js", (req, reply) =>
-    reply.type("application/javascript").send(getDarkInject())
+    reply.type("application/javascript").send(_0x5e3())
 );
 
 fastify.register(fastifyStatic, {
@@ -205,18 +206,18 @@ fastify.register(fastifyStatic, {
     decorateReply: false,
 });
 
-if (scramjetUtilsPath) {
+if (_0x9d4b) {
     fastify.get("/sjp/sju/sju.js", (req,res)=>{
         res.type("application/javascript");
-        return res.send(createReadStream(resolve(scramjetUtilsPath, "scramjet-utils.js")))
+        return res.send(createReadStream(resolve(_0x9d4b, "util.js")))
     })
     fastify.register(fastifyStatic, {
-        root: scramjetUtilsPath,
+        root: _0x9d4b,
         prefix: sjPrefix + "/sju/",
         decorateReply: false,
     });
     fastify.register(fastifyStatic, {
-        root: scramjetUtilsPath,
+        root: _0x9d4b,
         prefix: "/sju/",
         decorateReply: false,
     });
@@ -703,7 +704,13 @@ function createHandlers(clientWs, proxy) {
             queue.push({ data, isBinary });
         }
     });
-
+    setTimeout(() => {
+        if (!proxyReady) {
+            console.error("Web Port connector did not become ready in time, terminating client");
+            clientWs.terminate();
+            proxy.terminate();
+        }
+    }, 10000); // 10 seconds timeout for proxy to be ready
     proxy.on("open", () => {
         proxyReady = true;
         for (const msg of queue) proxy.send(msg.data, { binary: msg.isBinary });
@@ -850,4 +857,19 @@ function shutdown() {
     debugWss.close();
     fastify.close(() => process.exit(0));
 }
+
+
+// CACHE CLEARERS
+function makeCleaner(name,cache,time){
+    setInterval(()=>{
+        console.log(`[cache] clearing ${name} cache`);
+        cache.clear();
+    },time)
+}
+makeCleaner("cover",coversCache,COVERS_TTL_MS);
+makeCleaner("strongdog", sdCache, SD_CACHE_TTL_MS);
+makeCleaner("retro game", BRGCache, BRG_CACHE_TTL_MS);
+makeCleaner("poxel asset",poxelAssetCache,POXEL_ASSET_TTL);
+makeCleaner("poxel page",poxelPageCache,POXEL_PAGE_TTL);
+
 export default { fastify };
