@@ -90,7 +90,7 @@ const _0x5e1 = `(function(){const m=window.matchMedia.bind(window);window.matchM
 let _0x5e2 = null;
 function _0x5e3() {
     if (!_0x5e2) {
-        const _0x5e4 = readFileSync(resolve(_0x2c8e, "controller.inject.js"), "utf-8");
+        const _0x5e4 = readFileSync(resolve(_0x2c8e, "inject.js"), "utf-8");
         _0x5e2 = _0x5e1 + _0x5e4;
     }
     return _0x5e2;
