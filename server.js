@@ -173,12 +173,12 @@ fastify.register(fastifyStatic, {
 
 fastify.register(fastifyStatic, {
     root: _0x2c8e,
-    prefix: sjPrefix + "/controller/",
+    prefix: sjPrefix + "/svc/",
     decorateReply: false,
 });
 fastify.register(fastifyStatic, {
     root: _0x2c8e,
-    prefix: "/controller/",
+    prefix: "/svc/",
     decorateReply: false,
 });
 
