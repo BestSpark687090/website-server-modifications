@@ -503,7 +503,8 @@ fastify.get("/games/brg/*", async (req, res) => { // */
 
 // expects {"username": "[username]","url": "[url]" } // It can get IP by itself I think
 fastify.post("/reportURL", (req, res) => {
-    let body = req.body;
+    let body = {};
+    try { body = JSON.parse(req.body.toString()); } catch {}
     console.log(
         `[${new Date().toLocaleString()}]: ${body.username} visited ${body.url}, IP is ${req.ip}`,
     );
